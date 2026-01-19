@@ -12,7 +12,7 @@ Color is applied **gradually**, responding to hand coverage, movement, and rhyth
 
 This approach encourages mindful interaction and reduces cognitive and emotional pressure.
 
-![Lumina Screenshot](Documentation/Images/Screenshot1.png)
+![Lumina Screenshot](Documentation/Images/Screenshot_1.png)
 ---
 
 ## Key Feature: Motion-Based Input
