@@ -18,19 +18,19 @@ Body Text: 			18pt
 **Color:**  
 **Background：**Homepage, menus, setting pages, pop-up dialogs, etc. :
 
-- Primary Color:  \#D9E5F7  
-- Secondary Color: \#f09f4f， \#ffffff (White)  
+- Primary Color:  #D9E5F7  
+- Secondary Color: #f09f4f, #ffffff (White)  
 - Tertiary Color: N/A  
-- “Play” button Color: \#6FCF97  
-- “Options” button Color: \#808080  
-- “Home” button Color: \#D9E5F7  
-- “Quit” button Color: \#FF746C  
-- “Restart” button Color: \#6FCF97  
-- Other UI general-purpose button Colors: \#b2cceb
+- “Play” button Color: #6FCF97  
+- “Options” button Color: #808080  
+- “Home” button Color: #D9E5F7  
+- “Quit” button Color: #FF746C  
+- “Restart” button Color: #6FCF97  
+- Other UI general-purpose button Colors: #b2cceb
 
 **General UI Style: SIMPLE: pastel colours and basic cartoon-style**
 
-- Use icons \> text: stars ⭐， badges 🎖️🏆  
+- Use icons > text: stars ⭐， badges 🎖️🏆  
 - Rounded icons/shapes (no sharp stuff)  
 - Avoid scary symbols: ❌️， ⚠️
 
@@ -43,7 +43,7 @@ Body Text: 			18pt
 - Pastel colors (less saturated and warmer colors)  
 - One action per button  
 - Less text, more intuitive icons  
-  - Use icon \+ text together  
+  - Use icon + text together  
 - Buttons MUST have consistent styling (i.e. color and icons)  
   - Start button/”Play\!”   
     - green  
@@ -73,7 +73,7 @@ Body Text: 			18pt
 - Voice instructions toggle  
 - Toggle each input method  
   - MotionInput  
-  - Mouse \+ Keyboard  
+  - Mouse + Keyboard  
   - Controller  
   - Xbox Adaptive Controller
 
