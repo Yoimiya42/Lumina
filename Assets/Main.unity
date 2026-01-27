@@ -1510,7 +1510,7 @@ MonoBehaviour:
   uiCamera: {fileID: 0}
   mainMaterial: {fileID: 2100000, guid: db8beb0cc5f8eb84482668a26098a11e, type: 2}
   gridOverlay: {fileID: 1012760683}
-  gridDensity: 0
+  gridDensity: 2
   brushRadius: 0.1
   secondsPerCell: 1.5
   mouseButton: 0
