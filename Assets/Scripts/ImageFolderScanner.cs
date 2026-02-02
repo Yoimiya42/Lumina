@@ -5,18 +5,17 @@ using UnityEngine;
 using UnityEngine.Events;
 
 /// <summary>
-/// Scans images from Lumina's user content folder and loads them as Sprites (for thumbnails / selection UI).
-/// Default scan directory: LauncherRoot/UserContent/Lumina/Images
-///
-/// Notes:
-/// - This loads images into memory. For many large images, you should generate thumbnails and load those instead.
-/// - For "first step", this is stable and simple.
+/// Scans images from configured Images folder and loads them as Sprites (for thumbnails/selection UI).
+/// Folder names are NOT hard-coded; everything comes from LuminaPathSettings.
 /// </summary>
-public class LuminaImageFolderScanner : MonoBehaviour
+public class ImageFolderScanner : MonoBehaviour
 {
+    [Header("Settings")]
+    [SerializeField] private PathSettings pathSettings;
+
     [Header("Scan Settings")]
-    [Tooltip("If empty, uses LuminaContentPaths.GetImagesDir().")]
-    [SerializeField] private string imagesDirOverride = "";
+    [Tooltip("If empty, uses ImagesDir resolved from pathSettings. If not empty, treated as absolute override.")]
+    [SerializeField] private string imagesDirAbsoluteOverride = "";
 
     [Tooltip("Scan subfolders (themes) recursively.")]
     [SerializeField] private bool includeSubfolders = true;
@@ -25,27 +24,33 @@ public class LuminaImageFolderScanner : MonoBehaviour
     [SerializeField] private string[] extensions = { ".png", ".jpg", ".jpeg", ".webp" };
 
     [Header("Runtime Output")]
-    [SerializeField] private List<LuminaImageItem> items = new List<LuminaImageItem>();
+    [SerializeField] private List<ImageItem> items = new List<ImageItem>();
 
     [Header("Events")]
-    public UnityEvent<List<LuminaImageItem>> OnScanCompleted;
+    public UnityEvent<List<ImageItem>> OnScanCompleted;
 
     [Serializable]
-    public class LuminaImageItem
+    public class ImageItem
     {
         public string filePath;     // absolute path
-        public string theme;        // folder name under Images (or "" if none)
+        public string theme;        // first folder under Images (or "" if none)
         public string fileName;     // without extension
         public Sprite sprite;       // loaded sprite (thumbnail use)
         public Vector2Int size;     // original pixel size
     }
 
-    public IReadOnlyList<LuminaImageItem> Items => items;
+    public IReadOnlyList<ImageItem> Items => items;
 
     private void Awake()
     {
-        // Ensure folders always exist (portable layout)
-        LuminaContentPaths.EnsureFolders();
+        if (pathSettings == null)
+        {
+            Debug.LogError("[ImageFolderScanner] Missing PathSettings reference.");
+            enabled = false;
+            return;
+        }
+
+        ContentPaths.EnsureFolders(pathSettings);
     }
 
     [ContextMenu("Scan Now")]
@@ -53,30 +58,35 @@ public class LuminaImageFolderScanner : MonoBehaviour
     {
         items.Clear();
 
-        string root = string.IsNullOrWhiteSpace(imagesDirOverride)
-            ? LuminaContentPaths.GetImagesDir()
-            : Path.GetFullPath(imagesDirOverride);
-
-        if (!Directory.Exists(root))
+        string imagesRoot = ResolveImagesRoot();
+        if (!Directory.Exists(imagesRoot))
         {
-            Debug.LogWarning($"[LuminaImageFolderScanner] Images directory not found, creating: {root}");
-            Directory.CreateDirectory(root);
+            Debug.LogWarning($"[ImageFolderScanner] Images directory not found, creating: {imagesRoot}");
+            Directory.CreateDirectory(imagesRoot);
         }
 
         var option = includeSubfolders ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
-        var files = Directory.GetFiles(root, "*.*", option);
+        var files = Directory.GetFiles(imagesRoot, "*.*", option);
 
         foreach (var f in files)
         {
             if (!IsAllowed(f)) continue;
 
-            var item = LoadAsItem(root, f);
+            var item = LoadAsItem(imagesRoot, f);
             if (item != null)
                 items.Add(item);
         }
 
-        Debug.Log($"[LuminaImageFolderScanner] Scan completed. Found {items.Count} images. Dir={root}");
-        OnScanCompleted?.Invoke(new List<LuminaImageItem>(items));
+        Debug.Log($"[ImageFolderScanner] Scan completed. Found {items.Count} images. Dir={imagesRoot}");
+        OnScanCompleted?.Invoke(new List<ImageItem>(items));
+    }
+
+    private string ResolveImagesRoot()
+    {
+        if (!string.IsNullOrWhiteSpace(imagesDirAbsoluteOverride))
+            return Path.GetFullPath(imagesDirAbsoluteOverride);
+
+        return ContentPaths.GetImagesFolder(pathSettings);
     }
 
     private bool IsAllowed(string filePath)
@@ -84,14 +94,14 @@ public class LuminaImageFolderScanner : MonoBehaviour
         string ext = Path.GetExtension(filePath).ToLowerInvariant();
         for (int i = 0; i < extensions.Length; i++)
         {
-            if (extensions[i] == null) continue;
+            if (string.IsNullOrWhiteSpace(extensions[i])) continue;
             if (ext == extensions[i].ToLowerInvariant())
                 return true;
         }
         return false;
     }
 
-    private LuminaImageItem LoadAsItem(string imagesRoot, string filePath)
+    private ImageItem LoadAsItem(string imagesRoot, string filePath)
     {
         try
         {
@@ -103,11 +113,10 @@ public class LuminaImageFolderScanner : MonoBehaviour
 
             if (!tex.LoadImage(bytes, markNonReadable: false))
             {
-                Destroy(tex);
+                UnityEngine.Object.Destroy(tex);
                 return null;
             }
 
-            // Create sprite
             var sprite = Sprite.Create(
                 tex,
                 new Rect(0, 0, tex.width, tex.height),
@@ -115,10 +124,9 @@ public class LuminaImageFolderScanner : MonoBehaviour
                 pixelsPerUnit: 100f
             );
 
-            // Theme name = immediate folder under Images
             string theme = GetThemeName(imagesRoot, filePath);
 
-            return new LuminaImageItem
+            return new ImageItem
             {
                 filePath = filePath,
                 theme = theme,
@@ -129,15 +137,15 @@ public class LuminaImageFolderScanner : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogWarning($"[LuminaImageFolderScanner] Failed to load image: {filePath}\n{e}");
+            Debug.LogWarning($"[ImageFolderScanner] Failed to load image: {filePath}\n{e}");
             return null;
         }
     }
 
     private string GetThemeName(string imagesRoot, string filePath)
     {
-        // imagesRoot: .../UserContent/Lumina/Images
-        // filePath:   .../UserContent/Lumina/Images/CAT/a.png
+        // imagesRoot: .../<UserContent>/<Game>/Images
+        // filePath:   .../<UserContent>/<Game>/Images/CAT/a.png
         // => theme = CAT
         try
         {
@@ -145,11 +153,9 @@ public class LuminaImageFolderScanner : MonoBehaviour
             var full = new FileInfo(filePath).Directory?.FullName;
             if (string.IsNullOrEmpty(full)) return "";
 
-            // If the image is directly under Images, no theme folder
             if (string.Equals(full, root, StringComparison.OrdinalIgnoreCase))
                 return "";
 
-            // theme is the first folder segment after root
             var relative = full.Substring(root.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var parts = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             return parts.Length > 0 ? parts[0] : "";
