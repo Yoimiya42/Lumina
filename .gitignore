@@ -15,3 +15,5 @@
 *.booproj
 *.svd
 *.pdb
+
+Assets/Scripts/Old/*
