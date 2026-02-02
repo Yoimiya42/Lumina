@@ -33,7 +33,6 @@ public class GridOverlayRenderer : MonoBehaviour
     {
         if (targetRect == null)
         {
-            Debug.LogError("[GridOverlayRenderer] targetRect is missing.");
             enabled = false;
             return;
         }
@@ -114,8 +113,6 @@ public class GridOverlayRenderer : MonoBehaviour
         {
             border.SetColor(isCompleted ? completedColor : normalColor);
         }
-
-        Debug.Log($"after SetCellCompleted: cellGO active={borders[x, y].gameObject.activeSelf}");
     }
 
     public void ClearHighlights()
