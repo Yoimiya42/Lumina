@@ -6,33 +6,33 @@ using TMPro;
 [RequireComponent(typeof(Image))]
 public class ThumbnailItemView : MonoBehaviour
 {
-    [Header("UI Refs")]
     [SerializeField] private Image thumbImage;      // child: ThumbImage
     [SerializeField] private TMP_Text progressText; // child: ProgressText
 
-    [Header("Selection Colors (change Button targetGraphic Image.color)")]
-    [SerializeField] private Color unselectedColor = new Color(1f, 1f, 1f, 0.20f);
-    [SerializeField] private Color selectedColor = new Color(0.60f, 0.30f, 1f, 0.65f);
+    [Header("Selection")]
+    [SerializeField] private Outline outline;       // add Outline on this object and drag here
+    [SerializeField] private Color unselectedBg = new Color(1f, 1f, 1f, 0.03f); // almost transparent
+    [SerializeField] private Color selectedBg = new Color(1f, 1f, 1f, 0.08f); // slightly visible (optional)
 
     private Button _button;
-    private Image _bg;              // this GameObject's Image (Button targetGraphic)
+    private Image _bg;
     private string _imagePath;
     private System.Action<ThumbnailItemView> _onClick;
 
+    private bool _selected;
+
     public string ImagePath => _imagePath;
+    public bool IsSelected => _selected;
 
     private void Awake()
     {
         _button = GetComponent<Button>();
         _bg = GetComponent<Image>();
 
-        _button.transition = Selectable.Transition.ColorTint;
-        _button.targetGraphic = _bg;
-
-        _button.onClick.AddListener(() => _onClick?.Invoke(this));
-
         if (thumbImage != null) thumbImage.raycastTarget = false;
         if (progressText != null) progressText.raycastTarget = false;
+
+        _button.onClick.AddListener(() => _onClick?.Invoke(this));
 
         SetSelected(false);
         SetProgressVisible(false);
@@ -78,7 +78,12 @@ public class ThumbnailItemView : MonoBehaviour
 
     public void SetSelected(bool selected)
     {
+        _selected = selected;
+
         if (_bg != null)
-            _bg.color = selected ? selectedColor : unselectedColor;
+            _bg.color = selected ? selectedBg : unselectedBg;
+
+        if (outline != null)
+            outline.enabled = selected;
     }
 }

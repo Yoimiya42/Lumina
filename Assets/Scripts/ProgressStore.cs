@@ -10,9 +10,9 @@ public static class ProgressStore
     [Serializable]
     public class Entry
     {
-        public string imageKey;               // sha1(imagePath)
-        public int lockedDifficulty;          // (int)Difficulty
-        public float progress01;              // 0..1
+        public string imageKey;      // sha1(imagePath)
+        public int lockedDifficulty; // 0..2
+        public float progress01;     // 0..1
         public long lastUpdatedUtcTicks;
     }
 
@@ -26,7 +26,7 @@ public static class ProgressStore
         Path.Combine(Application.persistentDataPath, "luminate_progress_db.json");
 
     private static Db _db;
-    private static Dictionary<string, Entry> _map; // imageKey -> Entry
+    private static Dictionary<string, Entry> _map;
 
     private static void EnsureLoaded()
     {
@@ -45,10 +45,8 @@ public static class ProgressStore
             {
                 _db = loaded;
                 foreach (var e in _db.entries)
-                {
                     if (!string.IsNullOrEmpty(e.imageKey))
                         _map[e.imageKey] = e;
-                }
             }
         }
         catch (Exception e)
@@ -59,10 +57,7 @@ public static class ProgressStore
         }
     }
 
-    public static string MakeImageKey(string imagePath)
-    {
-        return Sha1Hex(imagePath ?? "");
-    }
+    public static string MakeImageKey(string imagePath) => Sha1Hex(imagePath ?? "");
 
     public static bool TryGet(string imagePath, out Entry entry)
     {
@@ -80,10 +75,6 @@ public static class ProgressStore
         return false;
     }
 
-    /// <summary>
-    /// Save progress. If progress01 > 0, difficulty becomes locked to this value.
-    /// If progress01 == 0 and no existing entry, we do not create an entry by default.
-    /// </summary>
     public static void Set(string imagePath, Difficulty difficulty, float progress01)
     {
         EnsureLoaded();
@@ -91,7 +82,6 @@ public static class ProgressStore
 
         progress01 = Mathf.Clamp01(progress01);
 
-        // If progress is 0 and there's no entry, keep it "never played"
         if (progress01 <= 0f && !_map.ContainsKey(key))
             return;
 
@@ -102,7 +92,6 @@ public static class ProgressStore
             _map[key] = e;
         }
 
-        // Lock only matters when progress > 0
         if (progress01 > 0f)
             e.lockedDifficulty = (int)difficulty;
 
@@ -122,7 +111,6 @@ public static class ProgressStore
 
         _map.Remove(key);
         _db.entries.Remove(e);
-
         Save();
     }
 
@@ -130,7 +118,7 @@ public static class ProgressStore
     {
         try
         {
-            string json = JsonUtility.ToJson(_db, prettyPrint: true);
+            string json = JsonUtility.ToJson(_db, true);
             File.WriteAllText(FilePath, json);
         }
         catch (Exception e)

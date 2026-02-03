@@ -1,27 +1,35 @@
 using System.Collections.Generic;
-using System.IO;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// Builds ThemeSections and Thumbnails using ImageFolderScanner output.
+/// No absolute paths required; scanner resolves everything via PathSettings/ContentPaths.
+/// </summary>
 public class ThemeMenuBuilder : MonoBehaviour
 {
-    [Header("UI Roots")]
-    [SerializeField] private RectTransform gridRoot;            // ThemeBody (or a GridRoot under it)
-    [SerializeField] private ThumbnailItemView thumbnailPrefab; // PF_ThumbnailItem
+    [Header("Scanner (your existing system)")]
+    [SerializeField] private ImageFolderScanner scanner;
+
+    [Header("ScrollView Content")]
+    [SerializeField] private RectTransform contentRoot;      // ThemesScrollView/Viewport/Content
+
+    [Header("Prefabs")]
+    [SerializeField] private ThemeSectionView sectionPrefab; // PF_ThemeSection
+    [SerializeField] private ThumbnailItemView thumbPrefab;  // PF_ThumbnailItem
 
     [Header("Control Bar")]
-    [SerializeField] private Dropdown difficultyDropdown; // UnityEngine.UI.Dropdown (legacy)
+    [SerializeField] private TMP_Dropdown difficultyDropdown;   
     [SerializeField] private Button startButton;
     [SerializeField] private Button resetButton;
 
-    [Header("Data Source")]
-    [Tooltip("Folder that contains images or theme subfolders.")]
-    [SerializeField] private string imagesRootAbsolutePath;
+    [Header("Grid Config")]
+    [SerializeField] private int gridColumns = 3;
 
     public string SelectedImagePath { get; private set; }
     public Difficulty SelectedDifficulty { get; private set; }
 
-    private readonly List<ThumbnailItemView> _items = new();
     private ThumbnailItemView _selectedItem;
 
     private void Awake()
@@ -31,71 +39,127 @@ public class ThemeMenuBuilder : MonoBehaviour
 
         if (resetButton != null)
             resetButton.onClick.AddListener(OnResetClicked);
+
+        if (scanner != null)
+            scanner.OnScanCompleted.AddListener(OnScanCompleted);
     }
 
     private void Start()
     {
-        Build();
+        if (scanner == null)
+        {
+            Debug.LogError("[ThemeMenuBuilder] Missing ImageFolderScanner reference.");
+            return;
+        }
+
+        // This will ensure folders (scanner already does in Awake) and then scan.
+        scanner.Scan();
+
         SelectedDifficulty = GetDropdownDifficulty();
         UpdateStartButton();
         UpdateResetButton();
     }
 
-    [ContextMenu("Build")]
-    public void Build()
+    private void OnScanCompleted(List<ImageFolderScanner.ImageItem> items)
     {
-        if (gridRoot == null || thumbnailPrefab == null)
+        BuildFromItems(items);
+    }
+
+    private void BuildFromItems(List<ImageFolderScanner.ImageItem> items)
+    {
+        if (contentRoot == null || sectionPrefab == null || thumbPrefab == null)
         {
-            Debug.LogError("[ThemeMenuBuilder] Missing gridRoot or thumbnailPrefab.");
+            Debug.LogError("[ThemeMenuBuilder] Missing contentRoot/sectionPrefab/thumbPrefab.");
             return;
         }
 
-        ClearGrid();
+        ClearContent();
 
-        if (string.IsNullOrWhiteSpace(imagesRootAbsolutePath) || !Directory.Exists(imagesRootAbsolutePath))
+        // Group by theme folder name (CAT/DOG/...)
+        // Note: scanner.theme is "" if directly under ImagesRoot (no folder).
+        var byTheme = new Dictionary<string, List<ImageFolderScanner.ImageItem>>();
+        foreach (var it in items)
         {
-            Debug.LogError($"[ThemeMenuBuilder] Invalid imagesRootAbsolutePath: {imagesRootAbsolutePath}");
-            return;
+            string theme = string.IsNullOrWhiteSpace(it.theme) ? "Uncategorized" : it.theme;
+
+            if (!byTheme.TryGetValue(theme, out var list))
+            {
+                list = new List<ImageFolderScanner.ImageItem>();
+                byTheme[theme] = list;
+            }
+            list.Add(it);
         }
 
-        var imageFiles = CollectImages(imagesRootAbsolutePath);
+        // Optional: sort themes alphabetically for stable UI
+        var themes = new List<string>(byTheme.Keys);
+        themes.Sort();
 
-        foreach (var path in imageFiles)
+        foreach (var theme in themes)
         {
-            Sprite sprite = LoadSpriteFromFile(path);
+            var section = Instantiate(sectionPrefab, contentRoot);
+            section.SetTitle(theme);
 
-            var item = Instantiate(thumbnailPrefab, gridRoot);
-            item.Bind(sprite, path, OnThumbnailClicked);
+            // Ensure Grid fixed columns
+            var grid = section.GridRoot.GetComponent<GridLayoutGroup>();
+            if (grid != null)
+            {
+                grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+                grid.constraintCount = Mathf.Max(1, gridColumns);
+            }
 
-            _items.Add(item);
+            // Build thumbs
+            var list = byTheme[theme];
+            // Optional: sort files for stable ordering
+            list.Sort((a, b) => string.Compare(a.fileName, b.fileName, System.StringComparison.OrdinalIgnoreCase));
+
+            foreach (var img in list)
+            {
+                var item = Instantiate(thumbPrefab, section.GridRoot);
+                item.Bind(img.sprite, img.filePath, OnThumbnailClicked);
+            }
+
+            section.RefreshBodyHeight();
         }
 
-        // Optional: force layout refresh if needed
-        LayoutRebuilder.ForceRebuildLayoutImmediate(gridRoot);
+        LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
     }
 
     private void OnThumbnailClicked(ThumbnailItemView clicked)
     {
+        // Click same item again => deselect
+        if (_selectedItem == clicked)
+        {
+            _selectedItem.SetSelected(false);
+            _selectedItem = null;
+            SelectedImagePath = null;
+
+            // When nothing selected, dropdown should be interactable (free choice)
+            if (difficultyDropdown != null)
+                difficultyDropdown.interactable = true;
+
+            UpdateStartButton();
+            UpdateResetButton();
+            return;
+        }
+
+        // Select a new item => cancel old highlight
         if (_selectedItem != null)
             _selectedItem.SetSelected(false);
 
         _selectedItem = clicked;
         _selectedItem.SetSelected(true);
-
         SelectedImagePath = clicked.ImagePath;
 
         ApplyDifficultyRuleForSelectedImage();
-
         UpdateStartButton();
         UpdateResetButton();
-
-        Debug.Log($"[ThemeMenuBuilder] Selected={SelectedImagePath}, Difficulty={SelectedDifficulty}, DropdownEnabled={difficultyDropdown?.interactable}");
     }
 
+
     /// <summary>
-    /// Implements your rule:
-    /// - If progress > 0: dropdown shows locked difficulty and becomes disabled.
-    /// - Else: dropdown enabled, user can pick freely.
+    /// Your rule:
+    /// - If progress > 0: dropdown shows locked difficulty and is disabled.
+    /// - Else: dropdown is enabled and user can choose freely.
     /// </summary>
     private void ApplyDifficultyRuleForSelectedImage()
     {
@@ -104,7 +168,6 @@ public class ThemeMenuBuilder : MonoBehaviour
 
         if (ProgressStore.TryGet(SelectedImagePath, out var e) && e.progress01 > 0f)
         {
-            // Lock
             int locked = Mathf.Clamp(e.lockedDifficulty, 0, 2);
             difficultyDropdown.value = locked;
             difficultyDropdown.RefreshShownValue();
@@ -114,7 +177,6 @@ public class ThemeMenuBuilder : MonoBehaviour
         }
         else
         {
-            // Unlocked
             difficultyDropdown.interactable = true;
             SelectedDifficulty = GetDropdownDifficulty();
         }
@@ -122,7 +184,6 @@ public class ThemeMenuBuilder : MonoBehaviour
 
     private void OnDifficultyChanged(int index)
     {
-        // Only matters when unlocked (interactable=true); when locked, dropdown won't change anyway
         SelectedDifficulty = (Difficulty)Mathf.Clamp(index, 0, 2);
     }
 
@@ -133,20 +194,16 @@ public class ThemeMenuBuilder : MonoBehaviour
 
         ProgressStore.Reset(SelectedImagePath);
 
-        // Refresh UI: progress badge and dropdown unlock
         if (_selectedItem != null)
             _selectedItem.RefreshProgressFromStore();
 
         if (difficultyDropdown != null)
         {
             difficultyDropdown.interactable = true;
-            // After reset, difficulty is free again; keep current dropdown selection
             SelectedDifficulty = GetDropdownDifficulty();
         }
 
         UpdateResetButton();
-
-        Debug.Log($"[ThemeMenuBuilder] Reset: {SelectedImagePath}");
     }
 
     private void UpdateStartButton()
@@ -159,7 +216,6 @@ public class ThemeMenuBuilder : MonoBehaviour
     {
         if (resetButton == null) return;
 
-        // Enable reset only if selected image has progress > 0
         bool canReset = false;
         if (!string.IsNullOrEmpty(SelectedImagePath) &&
             ProgressStore.TryGet(SelectedImagePath, out var e) &&
@@ -177,60 +233,12 @@ public class ThemeMenuBuilder : MonoBehaviour
         return (Difficulty)Mathf.Clamp(difficultyDropdown.value, 0, 2);
     }
 
-    private void ClearGrid()
+    private void ClearContent()
     {
-        _items.Clear();
         _selectedItem = null;
         SelectedImagePath = null;
 
-        for (int i = gridRoot.childCount - 1; i >= 0; i--)
-            Destroy(gridRoot.GetChild(i).gameObject);
-    }
-
-    private static List<string> CollectImages(string root)
-    {
-        var list = new List<string>();
-
-        // If subfolders exist, treat them as themes; otherwise take direct files
-        var subdirs = Directory.GetDirectories(root);
-        if (subdirs.Length > 0)
-        {
-            foreach (var dir in subdirs)
-            {
-                foreach (var f in Directory.GetFiles(dir))
-                    if (IsImageFile(f)) list.Add(f);
-            }
-        }
-        else
-        {
-            foreach (var f in Directory.GetFiles(root))
-                if (IsImageFile(f)) list.Add(f);
-        }
-
-        return list;
-    }
-
-    private static bool IsImageFile(string path)
-    {
-        string ext = Path.GetExtension(path).ToLowerInvariant();
-        return ext == ".png" || ext == ".jpg" || ext == ".jpeg";
-    }
-
-    private static Sprite LoadSpriteFromFile(string path)
-    {
-        try
-        {
-            byte[] bytes = File.ReadAllBytes(path);
-            Texture2D tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-            if (!tex.LoadImage(bytes))
-                return null;
-
-            return Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError($"[ThemeMenuBuilder] LoadSprite failed: {path}\n{e}");
-            return null;
-        }
+        for (int i = contentRoot.childCount - 1; i >= 0; i--)
+            Destroy(contentRoot.GetChild(i).gameObject);
     }
 }
