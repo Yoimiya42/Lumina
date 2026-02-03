@@ -6,33 +6,32 @@ using TMPro;
 public class ThumbnailItemView : MonoBehaviour
 {
     [Header("UI Refs")]
-    [SerializeField] private Image thumbImage;        // 指向子物体 ThumbImage 的 Image
-    [SerializeField] private TMP_Text progressText;   // 指向子物体 ProgressText 的 TMP_Text
+    [SerializeField] private Image thumbImage;
+    [SerializeField] private TMP_Text progressText;
 
     private Outline _outline;
     private Button _button;
-
     private System.Action<ThumbnailItemView> _onClick;
 
-    public string ImagePath { get; private set; }
+    public string ImagePath { get; private set; } // absolute path
+    public string ImageId { get; private set; }   // sha1(file bytes)
 
     private void Awake()
     {
         _button = GetComponent<Button>();
-        _outline = GetComponent<Outline>(); // 组件在 prefab 根上
-
+        _outline = GetComponent<Outline>();
         if (_outline != null) _outline.enabled = false;
 
-        // 避免子物体挡点击
         if (thumbImage != null) thumbImage.raycastTarget = false;
         if (progressText != null) progressText.raycastTarget = false;
 
         _button.onClick.AddListener(() => _onClick?.Invoke(this));
     }
 
-    public void Bind(Sprite sprite, string imagePath, System.Action<ThumbnailItemView> onClick)
+    public void Bind(Sprite sprite, string imagePath, string imageId, System.Action<ThumbnailItemView> onClick)
     {
         ImagePath = imagePath;
+        ImageId = imageId;
         _onClick = onClick;
 
         if (thumbImage != null)

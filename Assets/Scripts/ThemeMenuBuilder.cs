@@ -9,7 +9,7 @@ public class ThemeMenuBuilder : MonoBehaviour
     [Header("UI Roots")]
     [SerializeField] private RectTransform contentRoot;
     [SerializeField] private ThemeSectionView sectionPrefab;
-    [SerializeField] private ThumbnailItemView thumbnailPrefab; 
+    [SerializeField] private ThumbnailItemView thumbnailPrefab;
 
     [Header("Scanner")]
     [SerializeField] private ImageFolderScanner scanner;
@@ -20,6 +20,18 @@ public class ThemeMenuBuilder : MonoBehaviour
     [SerializeField] private Button resetButton;
 
     public string SelectedImagePath { get; private set; }
+    public string SelectedImageId { get; private set; }
+
+    //expose selected difficulty
+    public Difficulty SelectedDifficulty
+    {
+        get
+        {
+            if (difficultyDropdown == null) return Difficulty.Hard;
+            int v = Mathf.Clamp(difficultyDropdown.value, 0, 2);
+            return (Difficulty)v; // 0 Easy, 1 Medium, 2 Hard
+        }
+    }
 
     private ThumbnailItemView _selectedItem;
 
@@ -57,15 +69,14 @@ public class ThemeMenuBuilder : MonoBehaviour
             return;
         }
 
-        // 清空旧内容
         for (int i = contentRoot.childCount - 1; i >= 0; i--)
             Destroy(contentRoot.GetChild(i).gameObject);
 
         _selectedItem = null;
         SelectedImagePath = null;
+        SelectedImageId = null;
         UpdateUiLockState();
 
-        // 主题 = Images 下一级文件夹名（你的 scanner 已经给了 item.theme）
         var groups = items
             .GroupBy(x => string.IsNullOrWhiteSpace(x.theme) ? "Default" : x.theme)
             .OrderBy(g => g.Key);
@@ -83,49 +94,40 @@ public class ThemeMenuBuilder : MonoBehaviour
                 continue;
             }
 
-            // 生成缩略图到 ThemeBody 下
             foreach (var it in g)
             {
                 var thumb = Instantiate(thumbnailPrefab, body);
                 thumb.name = $"Thumb_{it.fileName}";
-
-                // 你 ThumbnailItemView 的 Bind 至少需要 sprite + path + onClick
-                thumb.Bind(it.sprite, it.filePath, OnThumbnailClicked);
-
-                // 如果你 ThumbnailItemView 里有刷新进度的方法，可以在 Bind 内做
-                // thumb.RefreshProgressFromStore();
+                thumb.Bind(it.sprite, it.filePath, it.imageId, OnThumbnailClicked);
             }
 
-            // 让 ThemeBody 根据缩略图数量撑高
             var fitter = body.GetComponent<ThemeBodyHeightFitter>();
             fitter?.Refit();
         }
 
-        // 刷新整体布局
         Canvas.ForceUpdateCanvases();
         LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
     }
 
     private void OnThumbnailClicked(ThumbnailItemView clicked)
     {
-        // 再点同一个：取消
         if (_selectedItem == clicked)
         {
             _selectedItem.SetSelected(false);
             _selectedItem = null;
             SelectedImagePath = null;
-
+            SelectedImageId = null;
             UpdateUiLockState();
             return;
         }
 
-        // 取消旧的
         if (_selectedItem != null)
             _selectedItem.SetSelected(false);
 
         _selectedItem = clicked;
         _selectedItem.SetSelected(true);
         SelectedImagePath = clicked.ImagePath;
+        SelectedImageId = clicked.ImageId;
 
         UpdateUiLockState();
     }
@@ -137,7 +139,6 @@ public class ThemeMenuBuilder : MonoBehaviour
         if (startButton != null)
             startButton.interactable = hasSelection;
 
-        // 默认：未选中则 dropdown 不可用（你也可以改成可用但没意义）
         if (difficultyDropdown != null)
             difficultyDropdown.interactable = hasSelection;
 
@@ -148,7 +149,6 @@ public class ThemeMenuBuilder : MonoBehaviour
             entry != null &&
             entry.progress01 > 0f)
         {
-            // 有进度：锁定难度
             if (difficultyDropdown != null)
             {
                 difficultyDropdown.value = Mathf.Clamp(entry.lockedDifficulty, 0, difficultyDropdown.options.Count - 1);
@@ -169,12 +169,10 @@ public class ThemeMenuBuilder : MonoBehaviour
 
         ProgressStore.Reset(SelectedImagePath);
 
-        // Reset 后：难度重新可选（前提是仍然选着这张图）
         if (difficultyDropdown != null)
             difficultyDropdown.interactable = !string.IsNullOrEmpty(SelectedImagePath);
 
-        // 刷新缩略图上的进度显示（如果你 ThumbnailItemView 有对应方法）
-        // _selectedItem.RefreshProgressFromStore();
+        _selectedItem?.RefreshProgressFromStore();
 
         UpdateUiLockState();
     }

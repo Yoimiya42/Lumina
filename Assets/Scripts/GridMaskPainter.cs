@@ -18,7 +18,7 @@ public class GridMaskPainter : MonoBehaviour
 
     public enum GridDensityPreset { Low, Medium, High }
 
-    [Header("Grid Density Preset")]
+    [Header("Grid Density Preset (fallback)")]
     [SerializeField] private GridDensityPreset gridDensity = GridDensityPreset.High;
 
     private int gridX;
@@ -33,26 +33,27 @@ public class GridMaskPainter : MonoBehaviour
     [SerializeField] private float secondsPerCell = 5f;
 
     [Header("Input (temporary)")]
-    [SerializeField] private int mouseButton = 0; // 0 = left mouse
+    [SerializeField] private int mouseButton = 0;
     [SerializeField] private KeyCode clearKey = KeyCode.C;
 
     [Header("Visual Feedback")]
-    [Tooltip("Yellow circle UI image that follows the hand/mouse.")]
     [SerializeField] private RectTransform palmCursor;
     [SerializeField] private bool showPalmCursor = true;
 
     [Header("Progress UI")]
-    [SerializeField] private Slider progressSlider;      // 拖你的 ProgressBar(Slider) 进来
-    [SerializeField] private TMP_Text progressText;   // 若用TMP就用这行替代上面那行
+    [SerializeField] private Slider progressSlider;
+    [SerializeField] private TMP_Text progressText;
 
-    private float totalFill01 = 0f; // 所有cell进度之和（每个cell 0..1）
-    // Runtime
+    private float totalFill01 = 0f;
+
     private Material runtimeMainMat;
-    private Texture2D maskTex;         // size = gridX x gridY
-    private float[] cell;              // flattened: y*gridX + x
+    private Texture2D maskTex;
+    private float[] cell;
 
     private static readonly int MainTexProp = Shader.PropertyToID("_MainTex");
     private static readonly int MaskTexProp = Shader.PropertyToID("_MaskTex");
+
+    private bool _ready = false;
 
     private void Awake()
     {
@@ -63,30 +64,80 @@ public class GridMaskPainter : MonoBehaviour
             return;
         }
 
-        ApplyGridPreset();
-
-        // Clone material at runtime
+        // 仅创建运行时材质；不要在Awake里锁死grid密度（由 BeginNewImage 决定）
         runtimeMainMat = new Material(mainMaterial);
         targetImage.material = runtimeMainMat;
-
-        // Ensure _MainTex matches sprite texture
-        if (targetImage.sprite != null)
-            runtimeMainMat.SetTexture(MainTexProp, targetImage.sprite.texture);
-
-        AllocateMask(gridX, gridY);
-        runtimeMainMat.SetTexture(MaskTexProp, maskTex);
 
         if (palmCursor != null)
             palmCursor.gameObject.SetActive(showPalmCursor);
 
-        Debug.Log("[GridMaskPainter] Ready. Hold mouse to paint slowly. Press C to clear.");
+        // fallback preset（如果你在编辑器里直接测试，不走BeginNewImage）
+        ApplyGridPreset(gridDensity);
+        AllocateMask(gridX, gridY);
+
+        // 如果 targetImage.sprite 已经有了，就同步一次主纹理
+        if (targetImage.sprite != null)
+            runtimeMainMat.SetTexture(MainTexProp, targetImage.sprite.texture);
+
+        runtimeMainMat.SetTexture(MaskTexProp, maskTex);
 
         if (gridOverlay != null)
             gridOverlay.Configure(gridX, gridY);
+
+        _ready = true;
+    }
+
+    /// <summary>
+    /// NEW: Called by GameEntryController when entering game.
+    /// This will (1) set sprite, (2) map difficulty -> grid density (8/12/16),
+    /// (3) rebuild mask + grid overlay, (4) reset progress.
+    /// </summary>
+    public void BeginNewImage(Sprite sprite, Difficulty difficulty)
+    {
+        if (!_ready)
+        {
+            Debug.LogWarning("[GridMaskPainter] Not ready yet. Ensure this component is enabled and Awake ran.");
+        }
+
+        if (sprite != null)
+        {
+            targetImage.sprite = sprite;
+            if (runtimeMainMat != null)
+                runtimeMainMat.SetTexture(MainTexProp, sprite.texture);
+        }
+
+        // difficulty -> preset
+        GridDensityPreset preset = difficulty switch
+        {
+            Difficulty.Easy => GridDensityPreset.Low,      // 8x8
+            Difficulty.Medium => GridDensityPreset.Medium, // 12x12
+            _ => GridDensityPreset.High                    // 16x16
+        };
+
+        ApplyGridPreset(preset);
+
+        // reallocate mask/cells for new grid size
+        AllocateMask(gridX, gridY);
+        if (runtimeMainMat != null)
+            runtimeMainMat.SetTexture(MaskTexProp, maskTex);
+
+        // rebuild grid overlay
+        if (gridOverlay != null)
+        {
+            gridOverlay.Configure(gridX, gridY);
+            gridOverlay.Rebuild();
+        }
+
+        ApplyMask();
+        UpdateProgressUI();
+
+        Debug.Log($"[GridMaskPainter] BeginNewImage diff={difficulty} preset={preset} grid={gridX}x{gridY}");
     }
 
     private void Update()
     {
+        if (!_ready) return;
+
         if (Input.GetKeyDown(clearKey))
         {
             ClearAll();
@@ -106,33 +157,31 @@ public class GridMaskPainter : MonoBehaviour
         if (hasUV && palmCursor != null)
             UpdatePalmCursor(uv, brushRadius);
 
-        // --- 顺序非常重要 ---
         if (gridOverlay != null)
         {
-            // 1. 先把所有还存在的格子重置为白色
             gridOverlay.ClearHighlights();
-        
-            // 2. 如果鼠标在范围内，把鼠标下的格子变紫色
             if (hasUV)
                 HighlightCoveredCells(uv, brushRadius);
         }
 
-        // 3. 填色逻辑
         if (!isHolding || !hasUV) return;
 
         float delta = (1f / Mathf.Max(0.1f, secondsPerCell)) * Time.deltaTime;
-        if (FillCoveredCells(uv, brushRadius, delta)) { 
+        if (FillCoveredCells(uv, brushRadius, delta))
+        {
             ApplyMask();
             UpdateProgressUI();
         }
     }
 
-    private void ApplyGridPreset() {
-        switch (gridDensity)
+    private void ApplyGridPreset(GridDensityPreset preset)
+    {
+        gridDensity = preset;
+        switch (preset)
         {
-            case GridDensityPreset.Low:     gridX = 8; gridY = 8; break;
-            case GridDensityPreset.Medium:  gridX = 12; gridY = 12; break;
-            default:                        gridX = 16; gridY = 16; break;
+            case GridDensityPreset.Low: gridX = 8; gridY = 8; break;
+            case GridDensityPreset.Medium: gridX = 12; gridY = 12; break;
+            default: gridX = 16; gridY = 16; break;
         }
     }
 
@@ -143,19 +192,21 @@ public class GridMaskPainter : MonoBehaviour
 
         cell = new float[gridX * gridY];
 
+        if (maskTex != null)
+            Destroy(maskTex);
+
         maskTex = new Texture2D(gridX, gridY, TextureFormat.R8, false, true);
         maskTex.wrapMode = TextureWrapMode.Clamp;
-        maskTex.filterMode = FilterMode.Point; // crisp grid boundaries
+        maskTex.filterMode = FilterMode.Point;
         maskTex.name = "GridMask_Runtime";
 
         ClearAll();
         totalFill01 = 0f;
-        ApplyMask();
-        UpdateProgressUI();
     }
 
     private void ClearAll()
     {
+        if (cell == null) return;
         for (int i = 0; i < cell.Length; i++)
             cell[i] = 0f;
 
@@ -187,30 +238,19 @@ public class GridMaskPainter : MonoBehaviour
 
     private void UpdatePalmCursor(Vector2 uv01, float radiusUV)
     {
-        // Convert UV back to local position inside the Image rect
         RectTransform rt = targetImage.rectTransform;
         Rect rect = rt.rect;
 
         float localX = rect.xMin + uv01.x * rect.width;
         float localY = rect.yMin + uv01.y * rect.height;
 
-        // Place cursor in the same RectTransform space as the Image
-        // Best practice: keep palmCursor under the same Canvas as targetImage
         palmCursor.position = rt.TransformPoint(new Vector3(localX, localY, 0f));
 
-        // Scale cursor diameter to match brush radius in screen space
         float size = (radiusUV * 2f) * Mathf.Min(rect.width, rect.height);
-        float diameterLocalX = size;
-        float diameterLocalY = size;
-
-        palmCursor.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, diameterLocalX);
-        palmCursor.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, diameterLocalY);
+        palmCursor.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, size);
+        palmCursor.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, size);
     }
 
-    /// <summary>
-    /// Fill every cell whose rectangle intersects the brush circle (UV space).
-    /// Progress is accumulated and preserved when not covered.
-    /// </summary>
     private bool FillCoveredCells(Vector2 centerUV, float radiusUV, float delta)
     {
         bool changed = false;
@@ -294,18 +334,18 @@ public class GridMaskPainter : MonoBehaviour
         }
     }
 
-    private void UpdateProgressUI() {
+    private void UpdateProgressUI()
+    {
         if (cell == null || cell.Length == 0) return;
 
         float completed01 = Mathf.Clamp01(totalFill01 / cell.Length);
 
-        if (progressSlider != null) 
+        if (progressSlider != null)
             progressSlider.value = completed01;
-        
+
         if (progressText != null)
             progressText.text = Mathf.RoundToInt(completed01 * 100f) + "%";
     }
-
 
     private static bool CircleIntersectsRect(Vector2 c, float r2, float xMin, float yMin, float xMax, float yMax)
     {
@@ -320,6 +360,8 @@ public class GridMaskPainter : MonoBehaviour
 
     private void ApplyMask()
     {
+        if (maskTex == null || cell == null) return;
+
         for (int y = 0; y < gridY; y++)
         {
             for (int x = 0; x < gridX; x++)
@@ -337,8 +379,8 @@ public class GridMaskPainter : MonoBehaviour
     {
         brushRadius = Mathf.Clamp(radius, 0.01f, 0.2f);
     }
-    public float GetBrushRadiusUV() => brushRadius;
 
+    public float GetBrushRadiusUV() => brushRadius;
 
     private void OnDestroy()
     {
@@ -346,4 +388,3 @@ public class GridMaskPainter : MonoBehaviour
         if (maskTex != null) Destroy(maskTex);
     }
 }
-

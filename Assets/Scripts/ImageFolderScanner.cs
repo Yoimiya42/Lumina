@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using UnityEngine;
 using UnityEngine.Events;
 
 /// <summary>
 /// Scans images from configured Images folder and loads them as Sprites (for thumbnails/selection UI).
-/// Folder names are NOT hard-coded; everything comes from LuminaPathSettings.
 /// </summary>
 public class ImageFolderScanner : MonoBehaviour
 {
@@ -35,8 +36,9 @@ public class ImageFolderScanner : MonoBehaviour
         public string filePath;     // absolute path
         public string theme;        // first folder under Images (or "" if none)
         public string fileName;     // without extension
-        public Sprite sprite;       // loaded sprite (thumbnail use)
+        public Sprite sprite;       // thumbnail sprite
         public Vector2Int size;     // original pixel size
+        public string imageId;      // sha1(file bytes)
     }
 
     public IReadOnlyList<ImageItem> Items => items;
@@ -108,6 +110,8 @@ public class ImageFolderScanner : MonoBehaviour
             byte[] bytes = File.ReadAllBytes(filePath);
             if (bytes == null || bytes.Length == 0) return null;
 
+            string imageId = Sha1Hex(bytes);
+
             var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false, false);
             tex.name = Path.GetFileName(filePath);
 
@@ -132,7 +136,8 @@ public class ImageFolderScanner : MonoBehaviour
                 theme = theme,
                 fileName = Path.GetFileNameWithoutExtension(filePath),
                 sprite = sprite,
-                size = new Vector2Int(tex.width, tex.height)
+                size = new Vector2Int(tex.width, tex.height),
+                imageId = imageId
             };
         }
         catch (Exception e)
@@ -144,9 +149,6 @@ public class ImageFolderScanner : MonoBehaviour
 
     private string GetThemeName(string imagesRoot, string filePath)
     {
-        // imagesRoot: .../<UserContent>/<Game>/Images
-        // filePath:   .../<UserContent>/<Game>/Images/CAT/a.png
-        // => theme = CAT
         try
         {
             var root = new DirectoryInfo(imagesRoot).FullName;
@@ -164,5 +166,16 @@ public class ImageFolderScanner : MonoBehaviour
         {
             return "";
         }
+    }
+
+    private static string Sha1Hex(byte[] input)
+    {
+        using var sha1 = SHA1.Create();
+        byte[] hash = sha1.ComputeHash(input);
+
+        var sb = new StringBuilder(hash.Length * 2);
+        for (int i = 0; i < hash.Length; i++)
+            sb.Append(hash[i].ToString("x2"));
+        return sb.ToString();
     }
 }
