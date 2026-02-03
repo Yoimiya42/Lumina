@@ -3,44 +3,36 @@ using UnityEngine.UI;
 using TMPro;
 
 [RequireComponent(typeof(Button))]
-[RequireComponent(typeof(Image))]
 public class ThumbnailItemView : MonoBehaviour
 {
-    [SerializeField] private Image thumbImage;      // child: ThumbImage
-    [SerializeField] private TMP_Text progressText; // child: ProgressText
+    [Header("UI Refs")]
+    [SerializeField] private Image thumbImage;        // 指向子物体 ThumbImage 的 Image
+    [SerializeField] private TMP_Text progressText;   // 指向子物体 ProgressText 的 TMP_Text
 
-    [Header("Selection")]
-    [SerializeField] private Outline outline;       // add Outline on this object and drag here
-    [SerializeField] private Color unselectedBg = new Color(1f, 1f, 1f, 0.03f); // almost transparent
-    [SerializeField] private Color selectedBg = new Color(1f, 1f, 1f, 0.08f); // slightly visible (optional)
-
+    private Outline _outline;
     private Button _button;
-    private Image _bg;
-    private string _imagePath;
+
     private System.Action<ThumbnailItemView> _onClick;
 
-    private bool _selected;
-
-    public string ImagePath => _imagePath;
-    public bool IsSelected => _selected;
+    public string ImagePath { get; private set; }
 
     private void Awake()
     {
         _button = GetComponent<Button>();
-        _bg = GetComponent<Image>();
+        _outline = GetComponent<Outline>(); // 组件在 prefab 根上
 
+        if (_outline != null) _outline.enabled = false;
+
+        // 避免子物体挡点击
         if (thumbImage != null) thumbImage.raycastTarget = false;
         if (progressText != null) progressText.raycastTarget = false;
 
         _button.onClick.AddListener(() => _onClick?.Invoke(this));
-
-        SetSelected(false);
-        SetProgressVisible(false);
     }
 
     public void Bind(Sprite sprite, string imagePath, System.Action<ThumbnailItemView> onClick)
     {
-        _imagePath = imagePath;
+        ImagePath = imagePath;
         _onClick = onClick;
 
         if (thumbImage != null)
@@ -53,37 +45,27 @@ public class ThumbnailItemView : MonoBehaviour
         RefreshProgressFromStore();
     }
 
+    public void SetSelected(bool selected)
+    {
+        if (_outline != null) _outline.enabled = selected;
+    }
+
     public void RefreshProgressFromStore()
     {
         if (progressText == null) return;
 
-        if (ProgressStore.TryGet(_imagePath, out var e) && e.progress01 > 0f)
+        if (!string.IsNullOrEmpty(ImagePath) &&
+            ProgressStore.TryGet(ImagePath, out var entry) &&
+            entry != null &&
+            entry.progress01 > 0f)
         {
-            int percent = Mathf.RoundToInt(e.progress01 * 100f);
-            progressText.text = $"{percent}%";
-            SetProgressVisible(true);
+            progressText.gameObject.SetActive(true);
+            progressText.text = $"{Mathf.RoundToInt(entry.progress01 * 100f)}%";
         }
         else
         {
             progressText.text = "";
-            SetProgressVisible(false);
+            progressText.gameObject.SetActive(false);
         }
-    }
-
-    private void SetProgressVisible(bool visible)
-    {
-        if (progressText != null)
-            progressText.gameObject.SetActive(visible);
-    }
-
-    public void SetSelected(bool selected)
-    {
-        _selected = selected;
-
-        if (_bg != null)
-            _bg.color = selected ? selectedBg : unselectedBg;
-
-        if (outline != null)
-            outline.enabled = selected;
     }
 }

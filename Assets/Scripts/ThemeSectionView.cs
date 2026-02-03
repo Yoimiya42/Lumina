@@ -5,25 +5,29 @@ using TMPro;
 public class ThemeSectionView : MonoBehaviour
 {
     [Header("Header")]
-    [SerializeField] private TMP_Text themeText;   // ThemeHeaderItem/ThemeText
-    [SerializeField] private Button toggleButton;  // ThemeHeaderItem (or a child button)
+    [SerializeField] private Button toggleButton;
+    [SerializeField] private TMP_Text themeText;
 
     [Header("Body")]
     [SerializeField] private RectTransform bodyRoot; // ThemeBody
-    [SerializeField] private RectTransform gridRoot; // ThemeBody/GridRoot (has GridLayoutGroup)
-    [SerializeField] private LayoutElement bodyLayout;
-    [SerializeField] private GridLayoutGroup grid;
+    [SerializeField] private ThemeBodyHeightFitter bodyFitter;
 
     [SerializeField] private bool startCollapsed = false;
 
     private bool _expanded;
+
+    public RectTransform BodyRoot => bodyRoot;
 
     private void Awake()
     {
         if (toggleButton != null)
             toggleButton.onClick.AddListener(Toggle);
 
-        SetExpanded(!startCollapsed, true);
+        // 确保引用
+        if (bodyFitter == null && bodyRoot != null)
+            bodyFitter = bodyRoot.GetComponent<ThemeBodyHeightFitter>();
+
+        SetExpanded(!startCollapsed, force: true);
     }
 
     public void SetTitle(string title)
@@ -32,7 +36,10 @@ public class ThemeSectionView : MonoBehaviour
             themeText.text = title;
     }
 
-    public RectTransform GridRoot => gridRoot;
+    public void Toggle()
+    {
+        SetExpanded(!_expanded);
+    }
 
     public void SetExpanded(bool expanded, bool force = false)
     {
@@ -42,25 +49,12 @@ public class ThemeSectionView : MonoBehaviour
         if (bodyRoot != null)
             bodyRoot.gameObject.SetActive(_expanded);
 
-        if (_expanded) RefreshBodyHeight();
-        else if (bodyLayout != null) bodyLayout.preferredHeight = 0f;
-    }
+        // 展开时重算一次高度（防止第一次展开不撑开）
+        if (_expanded)
+            bodyFitter?.Refit();
 
-    public void Toggle() => SetExpanded(!_expanded);
-
-    public void RefreshBodyHeight()
-    {
-        if (grid == null || bodyLayout == null || gridRoot == null) return;
-
-        int itemCount = gridRoot.childCount;
-        int columns = Mathf.Max(1, grid.constraintCount);
-        int rows = Mathf.CeilToInt(itemCount / (float)columns);
-
-        float height =
-            grid.padding.top + grid.padding.bottom +
-            rows * grid.cellSize.y +
-            Mathf.Max(0, rows - 1) * grid.spacing.y;
-
-        bodyLayout.preferredHeight = height;
+        LayoutRebuilder.MarkLayoutForRebuild((RectTransform)transform);
+        if (transform.parent is RectTransform p)
+            LayoutRebuilder.MarkLayoutForRebuild(p);
     }
 }

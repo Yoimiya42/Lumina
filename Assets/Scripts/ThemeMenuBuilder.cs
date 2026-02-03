@@ -1,148 +1,125 @@
 using System.Collections.Generic;
-using TMPro;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
-/// <summary>
-/// Builds ThemeSections and Thumbnails using ImageFolderScanner output.
-/// No absolute paths required; scanner resolves everything via PathSettings/ContentPaths.
-/// </summary>
 public class ThemeMenuBuilder : MonoBehaviour
 {
-    [Header("Scanner (your existing system)")]
+    [Header("UI Roots")]
+    [SerializeField] private RectTransform contentRoot;
+    [SerializeField] private ThemeSectionView sectionPrefab;
+    [SerializeField] private ThumbnailItemView thumbnailPrefab; 
+
+    [Header("Scanner")]
     [SerializeField] private ImageFolderScanner scanner;
 
-    [Header("ScrollView Content")]
-    [SerializeField] private RectTransform contentRoot;      // ThemesScrollView/Viewport/Content
-
-    [Header("Prefabs")]
-    [SerializeField] private ThemeSectionView sectionPrefab; // PF_ThemeSection
-    [SerializeField] private ThumbnailItemView thumbPrefab;  // PF_ThumbnailItem
-
     [Header("Control Bar")]
-    [SerializeField] private TMP_Dropdown difficultyDropdown;   
+    [SerializeField] private TMP_Dropdown difficultyDropdown;
     [SerializeField] private Button startButton;
     [SerializeField] private Button resetButton;
 
-    [Header("Grid Config")]
-    [SerializeField] private int gridColumns = 3;
-
     public string SelectedImagePath { get; private set; }
-    public Difficulty SelectedDifficulty { get; private set; }
 
     private ThumbnailItemView _selectedItem;
 
     private void Awake()
     {
-        if (difficultyDropdown != null)
-            difficultyDropdown.onValueChanged.AddListener(OnDifficultyChanged);
+        if (startButton != null) startButton.interactable = false;
+        if (resetButton != null) resetButton.interactable = false;
 
         if (resetButton != null)
-            resetButton.onClick.AddListener(OnResetClicked);
-
-        if (scanner != null)
-            scanner.OnScanCompleted.AddListener(OnScanCompleted);
+            resetButton.onClick.AddListener(ResetSelected);
     }
 
     private void Start()
     {
         if (scanner == null)
         {
-            Debug.LogError("[ThemeMenuBuilder] Missing ImageFolderScanner reference.");
+            Debug.LogError("[ThemeMenuBuilder] Missing scanner reference.");
             return;
         }
 
-        // This will ensure folders (scanner already does in Awake) and then scan.
+        scanner.OnScanCompleted.AddListener(OnScanCompleted);
         scanner.Scan();
-
-        SelectedDifficulty = GetDropdownDifficulty();
-        UpdateStartButton();
-        UpdateResetButton();
     }
 
     private void OnScanCompleted(List<ImageFolderScanner.ImageItem> items)
     {
-        BuildFromItems(items);
+        Build(items);
     }
 
-    private void BuildFromItems(List<ImageFolderScanner.ImageItem> items)
+    public void Build(IReadOnlyList<ImageFolderScanner.ImageItem> items)
     {
-        if (contentRoot == null || sectionPrefab == null || thumbPrefab == null)
+        if (contentRoot == null || sectionPrefab == null || thumbnailPrefab == null)
         {
-            Debug.LogError("[ThemeMenuBuilder] Missing contentRoot/sectionPrefab/thumbPrefab.");
+            Debug.LogError("[ThemeMenuBuilder] Missing references in inspector.");
             return;
         }
 
-        ClearContent();
+        // 清空旧内容
+        for (int i = contentRoot.childCount - 1; i >= 0; i--)
+            Destroy(contentRoot.GetChild(i).gameObject);
 
-        // Group by theme folder name (CAT/DOG/...)
-        // Note: scanner.theme is "" if directly under ImagesRoot (no folder).
-        var byTheme = new Dictionary<string, List<ImageFolderScanner.ImageItem>>();
-        foreach (var it in items)
-        {
-            string theme = string.IsNullOrWhiteSpace(it.theme) ? "Uncategorized" : it.theme;
+        _selectedItem = null;
+        SelectedImagePath = null;
+        UpdateUiLockState();
 
-            if (!byTheme.TryGetValue(theme, out var list))
-            {
-                list = new List<ImageFolderScanner.ImageItem>();
-                byTheme[theme] = list;
-            }
-            list.Add(it);
-        }
+        // 主题 = Images 下一级文件夹名（你的 scanner 已经给了 item.theme）
+        var groups = items
+            .GroupBy(x => string.IsNullOrWhiteSpace(x.theme) ? "Default" : x.theme)
+            .OrderBy(g => g.Key);
 
-        // Optional: sort themes alphabetically for stable UI
-        var themes = new List<string>(byTheme.Keys);
-        themes.Sort();
-
-        foreach (var theme in themes)
+        foreach (var g in groups)
         {
             var section = Instantiate(sectionPrefab, contentRoot);
-            section.SetTitle(theme);
+            section.name = $"ThemeSection_{g.Key}";
+            section.SetTitle(g.Key);
 
-            // Ensure Grid fixed columns
-            var grid = section.GridRoot.GetComponent<GridLayoutGroup>();
-            if (grid != null)
+            var body = section.BodyRoot;
+            if (body == null)
             {
-                grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-                grid.constraintCount = Mathf.Max(1, gridColumns);
+                Debug.LogError($"[ThemeMenuBuilder] BodyRoot null on section {g.Key}. Check prefab refs.");
+                continue;
             }
 
-            // Build thumbs
-            var list = byTheme[theme];
-            // Optional: sort files for stable ordering
-            list.Sort((a, b) => string.Compare(a.fileName, b.fileName, System.StringComparison.OrdinalIgnoreCase));
-
-            foreach (var img in list)
+            // 生成缩略图到 ThemeBody 下
+            foreach (var it in g)
             {
-                var item = Instantiate(thumbPrefab, section.GridRoot);
-                item.Bind(img.sprite, img.filePath, OnThumbnailClicked);
+                var thumb = Instantiate(thumbnailPrefab, body);
+                thumb.name = $"Thumb_{it.fileName}";
+
+                // 你 ThumbnailItemView 的 Bind 至少需要 sprite + path + onClick
+                thumb.Bind(it.sprite, it.filePath, OnThumbnailClicked);
+
+                // 如果你 ThumbnailItemView 里有刷新进度的方法，可以在 Bind 内做
+                // thumb.RefreshProgressFromStore();
             }
 
-            section.RefreshBodyHeight();
+            // 让 ThemeBody 根据缩略图数量撑高
+            var fitter = body.GetComponent<ThemeBodyHeightFitter>();
+            fitter?.Refit();
         }
 
+        // 刷新整体布局
+        Canvas.ForceUpdateCanvases();
         LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
     }
 
     private void OnThumbnailClicked(ThumbnailItemView clicked)
     {
-        // Click same item again => deselect
+        // 再点同一个：取消
         if (_selectedItem == clicked)
         {
             _selectedItem.SetSelected(false);
             _selectedItem = null;
             SelectedImagePath = null;
 
-            // When nothing selected, dropdown should be interactable (free choice)
-            if (difficultyDropdown != null)
-                difficultyDropdown.interactable = true;
-
-            UpdateStartButton();
-            UpdateResetButton();
+            UpdateUiLockState();
             return;
         }
 
-        // Select a new item => cancel old highlight
+        // 取消旧的
         if (_selectedItem != null)
             _selectedItem.SetSelected(false);
 
@@ -150,95 +127,55 @@ public class ThemeMenuBuilder : MonoBehaviour
         _selectedItem.SetSelected(true);
         SelectedImagePath = clicked.ImagePath;
 
-        ApplyDifficultyRuleForSelectedImage();
-        UpdateStartButton();
-        UpdateResetButton();
+        UpdateUiLockState();
     }
 
-
-    /// <summary>
-    /// Your rule:
-    /// - If progress > 0: dropdown shows locked difficulty and is disabled.
-    /// - Else: dropdown is enabled and user can choose freely.
-    /// </summary>
-    private void ApplyDifficultyRuleForSelectedImage()
+    private void UpdateUiLockState()
     {
-        if (difficultyDropdown == null || string.IsNullOrEmpty(SelectedImagePath))
-            return;
+        bool hasSelection = !string.IsNullOrEmpty(SelectedImagePath);
 
-        if (ProgressStore.TryGet(SelectedImagePath, out var e) && e.progress01 > 0f)
-        {
-            int locked = Mathf.Clamp(e.lockedDifficulty, 0, 2);
-            difficultyDropdown.value = locked;
-            difficultyDropdown.RefreshShownValue();
+        if (startButton != null)
+            startButton.interactable = hasSelection;
 
-            SelectedDifficulty = (Difficulty)locked;
-            difficultyDropdown.interactable = false;
-        }
-        else
+        // 默认：未选中则 dropdown 不可用（你也可以改成可用但没意义）
+        if (difficultyDropdown != null)
+            difficultyDropdown.interactable = hasSelection;
+
+        bool canReset = false;
+
+        if (hasSelection &&
+            ProgressStore.TryGet(SelectedImagePath, out var entry) &&
+            entry != null &&
+            entry.progress01 > 0f)
         {
-            difficultyDropdown.interactable = true;
-            SelectedDifficulty = GetDropdownDifficulty();
+            // 有进度：锁定难度
+            if (difficultyDropdown != null)
+            {
+                difficultyDropdown.value = Mathf.Clamp(entry.lockedDifficulty, 0, difficultyDropdown.options.Count - 1);
+                difficultyDropdown.interactable = false;
+            }
+
+            canReset = true;
         }
+
+        if (resetButton != null)
+            resetButton.interactable = canReset;
     }
 
-    private void OnDifficultyChanged(int index)
-    {
-        SelectedDifficulty = (Difficulty)Mathf.Clamp(index, 0, 2);
-    }
-
-    private void OnResetClicked()
+    private void ResetSelected()
     {
         if (string.IsNullOrEmpty(SelectedImagePath))
             return;
 
         ProgressStore.Reset(SelectedImagePath);
 
-        if (_selectedItem != null)
-            _selectedItem.RefreshProgressFromStore();
-
+        // Reset 后：难度重新可选（前提是仍然选着这张图）
         if (difficultyDropdown != null)
-        {
-            difficultyDropdown.interactable = true;
-            SelectedDifficulty = GetDropdownDifficulty();
-        }
+            difficultyDropdown.interactable = !string.IsNullOrEmpty(SelectedImagePath);
 
-        UpdateResetButton();
-    }
+        // 刷新缩略图上的进度显示（如果你 ThumbnailItemView 有对应方法）
+        // _selectedItem.RefreshProgressFromStore();
 
-    private void UpdateStartButton()
-    {
-        if (startButton != null)
-            startButton.interactable = !string.IsNullOrEmpty(SelectedImagePath);
-    }
-
-    private void UpdateResetButton()
-    {
-        if (resetButton == null) return;
-
-        bool canReset = false;
-        if (!string.IsNullOrEmpty(SelectedImagePath) &&
-            ProgressStore.TryGet(SelectedImagePath, out var e) &&
-            e.progress01 > 0f)
-        {
-            canReset = true;
-        }
-
-        resetButton.interactable = canReset;
-    }
-
-    private Difficulty GetDropdownDifficulty()
-    {
-        if (difficultyDropdown == null) return Difficulty.Easy;
-        return (Difficulty)Mathf.Clamp(difficultyDropdown.value, 0, 2);
-    }
-
-    private void ClearContent()
-    {
-        _selectedItem = null;
-        SelectedImagePath = null;
-
-        for (int i = contentRoot.childCount - 1; i >= 0; i--)
-            Destroy(contentRoot.GetChild(i).gameObject);
+        UpdateUiLockState();
     }
 }
