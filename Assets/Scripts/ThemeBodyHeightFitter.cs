@@ -21,7 +21,6 @@ public class ThemeBodyHeightFitter : MonoBehaviour
     {
         if (_grid == null || _le == null) return;
 
-        // 只统计 active child（以后做过滤/隐藏也不会错）
         int count = 0;
         for (int i = 0; i < transform.childCount; i++)
         {
@@ -36,7 +35,6 @@ public class ThemeBodyHeightFitter : MonoBehaviour
             return;
         }
 
-        // 列数由你在 GridLayoutGroup 里指定
         int columns = Mathf.Max(1, _grid.constraintCount);
         int rows = Mathf.CeilToInt(count / (float)columns);
 

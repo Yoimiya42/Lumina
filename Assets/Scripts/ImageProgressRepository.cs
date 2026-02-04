@@ -72,7 +72,6 @@ public static class ImageProgressRepository
 
     private static void EnsureConfigured()
     {
-        // 如果你忘了在启动时 Configure，我们也不让它崩：直接 fallback
         if (_configured) return;
         _filePath = Path.Combine(Application.persistentDataPath, FileName);
         _configured = true;

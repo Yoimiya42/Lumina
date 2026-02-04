@@ -26,7 +26,6 @@ public class GridOverlayRenderer : MonoBehaviour
 
     private void Awake()
     {
-        // 允许 Awake 做一次初始化，但不依赖它（关键）
         EnsureInitialized();
         EnsureBuilt();
     }
@@ -43,7 +42,6 @@ public class GridOverlayRenderer : MonoBehaviour
             return false;
         }
 
-        // 允许不填：默认父节点（通常是 ColorImage）
         if (targetRect == null)
             targetRect = transform.parent as RectTransform;
 
@@ -97,7 +95,6 @@ public class GridOverlayRenderer : MonoBehaviour
         if (!EnsureInitialized()) return;
         if (IsBuilt()) return;
 
-        // overlay 自身铺满父节点（ColorImage）
         _self.anchorMin = Vector2.zero;
         _self.anchorMax = Vector2.one;
         _self.offsetMin = Vector2.zero;
@@ -168,9 +165,6 @@ public class GridOverlayRenderer : MonoBehaviour
         borders[x, y]?.SetColor(highlightColor);
     }
 
-    /// <summary>
-    /// 批量应用完成状态：cells[idx] >= 1 => 隐藏网格线
-    /// </summary>
     public void ApplyCompletedFromCells(float[] cells)
     {
         EnsureBuilt();

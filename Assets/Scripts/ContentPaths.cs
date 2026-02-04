@@ -35,8 +35,6 @@ public static class ContentPaths
             cursor = cursor.Parent;
         }
 
-        // ⭐ 关键修正：不要再用 gameRoot.Parent（那会把你推到 D:\_Unity_ 这种更外层）
-        // 如果找不到 Games，就认为当前 GameRoot 就是 LauncherRoot
         return gameRoot;
     }
 

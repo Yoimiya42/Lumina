@@ -49,7 +49,6 @@ public class ThemeSectionView : MonoBehaviour
         if (bodyRoot != null)
             bodyRoot.gameObject.SetActive(_expanded);
 
-        // 展开时重算一次高度（防止第一次展开不撑开）
         if (_expanded)
             bodyFitter?.Refit();
 

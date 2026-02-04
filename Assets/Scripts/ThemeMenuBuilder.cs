@@ -26,7 +26,6 @@ public class ThemeMenuBuilder : MonoBehaviour
     {
         get
         {
-            // 默认 Medium（如果 dropdown 没拖）
             if (difficultyDropdown == null) return Difficulty.Medium;
             int v = Mathf.Clamp(difficultyDropdown.value, 0, 2);
             return (Difficulty)v;
@@ -55,8 +54,6 @@ public class ThemeMenuBuilder : MonoBehaviour
         scanner.OnScanCompleted.AddListener(OnScanCompleted);
         scanner.Scan();
 
-        // Debug：查看JSON在哪里
-        // Debug.Log("ImageProgress DB: " + ImageProgressRepository.DebugGetFilePath());
     }
 
     private void OnScanCompleted(List<ImageFolderScanner.ImageItem> items)
@@ -139,7 +136,6 @@ public class ThemeMenuBuilder : MonoBehaviour
             entry != null &&
             entry.progress01 > 0f)
         {
-            // 有进度：锁定难度
             if (difficultyDropdown != null)
             {
                 difficultyDropdown.value = Mathf.Clamp(entry.lockedDifficulty, 0, difficultyDropdown.options.Count - 1);

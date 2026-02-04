@@ -45,7 +45,7 @@ public class GridMaskPainter : MonoBehaviour
     private Texture2D maskTex;
     private float[] cell;
 
-    private bool _ready = false; // ✅ 关键：只有 BeginOrRestore 后才允许 Update 跑逻辑
+    private bool _ready = false; 
 
     private static readonly int MainTexProp = Shader.PropertyToID("_MainTex");
     private static readonly int MaskTexProp = Shader.PropertyToID("_MaskTex");
@@ -67,7 +67,7 @@ public class GridMaskPainter : MonoBehaviour
         targetImage.material = runtimeMainMat;
 
         if (palmCursor != null)
-            palmCursor.gameObject.SetActive(false); // 先关掉，BeginOrRestore 后再按 showPalmCursor 控制
+            palmCursor.gameObject.SetActive(false); 
     }
 
     /// <summary>
@@ -78,7 +78,7 @@ public class GridMaskPainter : MonoBehaviour
     /// </summary>
     public void BeginOrRestore(Sprite sprite, Difficulty difficulty, float[] savedCellsOrNull)
     {
-        _ready = false; // 先关 Update，避免中途状态半初始化时跑 Update
+        _ready = false; 
 
         // 1) Apply sprite + main texture
         if (sprite != null)
@@ -111,7 +111,7 @@ public class GridMaskPainter : MonoBehaviour
 
         // 6) Apply visuals
         ApplyMask();
-        ApplyCompletedOverlayFromCells(); // ✅ 包含“消失网格线回放”
+        ApplyCompletedOverlayFromCells(); 
 
         UpdateProgressUI();
 
@@ -149,7 +149,7 @@ public class GridMaskPainter : MonoBehaviour
 
     private void Update()
     {
-        if (!_ready) return; // ✅ 防止没进入游戏就疯狂调用 overlay
+        if (!_ready) return; 
 
         // Debug clear
         if (Input.GetKeyDown(clearKey))
@@ -237,7 +237,6 @@ public class GridMaskPainter : MonoBehaviour
     {
         if (gridOverlay == null || cell == null) return;
 
-        // gridOverlay 内部会 EnsureBuilt/Configure 维度一致
         gridOverlay.ApplyCompletedFromCells(cell);
     }
 
