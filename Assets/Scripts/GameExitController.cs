@@ -10,6 +10,10 @@ public class GameExitController : MonoBehaviour
     [SerializeField] private GameObject menuPanel;
     [SerializeField] private GameObject gamePanel;
 
+    [Header("Menu Refresh")]
+    [Tooltip("Drag ThemesScrollView/Viewport/Content here (where thumbnails live)")]
+    [SerializeField] private Transform menuRootForThumbnails;
+
     public void ExitToMenuAndSave()
     {
         if (entryController == null || painter == null)
@@ -38,6 +42,25 @@ public class GameExitController : MonoBehaviour
 
         gamePanel?.SetActive(false);
         menuPanel?.SetActive(true);
+
+        RefreshMenuThumbnailProgress();
+    }
+
+    private void RefreshMenuThumbnailProgress()
+    {
+        Transform root = menuRootForThumbnails != null
+            ? menuRootForThumbnails
+            : (menuPanel != null ? menuPanel.transform : null);
+
+        if (root == null) return;
+
+        var thumbs = root.GetComponentsInChildren<ThumbnailItemView>(includeInactive: true);
+        foreach (var t in thumbs)
+        {
+            if (t != null)
+                t.RefreshProgressFromStore();
+        }
+
         Canvas.ForceUpdateCanvases();
     }
 }

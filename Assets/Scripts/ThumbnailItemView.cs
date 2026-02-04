@@ -59,7 +59,8 @@ public class ThumbnailItemView : MonoBehaviour
             entry.progress01 > 0f)
         {
             progressText.gameObject.SetActive(true);
-            progressText.text = $"{Mathf.RoundToInt(entry.progress01 * 100f)}%";
+            progressText.text = entry.progress01 >= 0.999f ? "🎖️": $"{Mathf.RoundToInt(entry.progress01 * 100f)}%";
+            
         }
         else
         {
