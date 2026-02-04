@@ -4,7 +4,6 @@ using UnityEngine;
 
 public static class ContentPaths
 {
- 
     /// In build: Application.dataPath = .../<GameName>_Data
     /// GameRoot = parent of dataPath = folder containing the EXE.
     /// In Editor: parent of Assets folder.
@@ -14,9 +13,9 @@ public static class ContentPaths
         return parent != null ? parent.FullName : Application.persistentDataPath;
     }
 
-    /// Finds LauncherRoot by searching upwards for a folder named settings.gamesFolderName.
+    /// Finds LauncherRoot by searching upwards for a folder named settings.gamesFolder.
     /// If found: LauncherRoot = parent of that folder.
-    /// If not found: fallback to GameRoot's parent.
+    /// If not found: fallback to GameRoot (NOT GameRoot's parent).
     public static string GetLauncherRoot(PathSettings settings)
     {
         if (settings == null)
@@ -34,19 +33,17 @@ public static class ContentPaths
                 return cursor.Parent != null ? cursor.Parent.FullName : gameRoot;
 
             cursor = cursor.Parent;
-        }   
-        return Directory.GetParent(gameRoot)?.FullName ?? gameRoot;
+        }
+
+        // ⭐ 关键修正：不要再用 gameRoot.Parent（那会把你推到 D:\_Unity_ 这种更外层）
+        // 如果找不到 Games，就认为当前 GameRoot 就是 LauncherRoot
+        return gameRoot;
     }
 
     private static string NormalizePath(string path)
     {
-        try {
-            return Path.GetFullPath(path);
-        }
-        catch
-        {
-            return path;
-        }
+        try { return Path.GetFullPath(path); }
+        catch { return path; }
     }
 
     public static string GetUserContentRoot(PathSettings settings)
@@ -75,26 +72,31 @@ public static class ContentPaths
         return Path.Combine(GetMyGameContentRoot(settings), settings.thumbnailsFolder);
     }
 
+    
+    public static string GetSavesFolder(PathSettings settings)
+    {
+        return Path.Combine(GetMyGameContentRoot(settings), settings.savesFolder);
+    }
+
     public static void EnsureFolders(PathSettings settings)
     {
         CreateIfMissing(GetUserContentRoot(settings));
         CreateIfMissing(GetMyGameContentRoot(settings));
         CreateIfMissing(GetImagesFolder(settings));
         CreateIfMissing(GetThumbnailsFolder(settings));
+        CreateIfMissing(GetSavesFolder(settings)); 
     }
 
     private static void CreateIfMissing(string path)
     {
-        try { 
-            if (!Directory.Exists(path))
-            {
-                Directory.CreateDirectory(path);
-            }
-        }
-        catch (Exception e) 
+        try
         {
-            Debug.LogWarning($"Failed to create directory: {path}\n");
+            if (!Directory.Exists(path))
+                Directory.CreateDirectory(path);
         }
-
+        catch (Exception e)
+        {
+            Debug.LogWarning($"Failed to create directory: {path}\n{e}");
+        }
     }
 }

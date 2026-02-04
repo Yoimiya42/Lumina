@@ -5,8 +5,10 @@ using UnityEngine;
 
 public static class ImageProgressRepository
 {
-    private static readonly string FilePath =
-        Path.Combine(Application.persistentDataPath, "luminate_image_progress_db.json");
+    private const string FileName = "luminate_image_progress_db.json";
+
+    private static string _filePath;  // runtime-resolved
+    private static bool _configured;
 
     [Serializable]
     public class Entry
@@ -30,20 +32,81 @@ public static class ImageProgressRepository
     private static Db _db;
     private static Dictionary<string, Entry> _map;
 
-    public static string DebugGetFilePath() => FilePath;
+    /// <summary>
+    /// Call once on startup (Menu scene / first scene).
+    /// Preferred path: UserContent/Lumina/Saves/FileName
+    /// Fallback path: Application.persistentDataPath/FileName
+    /// </summary>
+    public static void Configure(PathSettings pathSettings)
+    {
+        if (_configured) return;
+
+        string preferredDir = null;
+        try
+        {
+            ContentPaths.EnsureFolders(pathSettings);
+            preferredDir = ContentPaths.GetSavesFolder(pathSettings);
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"[ImageProgressRepository] Configure: failed to resolve preferred save dir.\n{e}");
+        }
+
+        if (!string.IsNullOrEmpty(preferredDir) && EnsureWritable(preferredDir))
+        {
+            _filePath = Path.Combine(preferredDir, FileName);
+        }
+        else
+        {
+            _filePath = Path.Combine(Application.persistentDataPath, FileName);
+        }
+
+        _configured = true;
+    }
+
+    public static string DebugGetFilePath()
+    {
+        EnsureConfigured();
+        return _filePath;
+    }
+
+    private static void EnsureConfigured()
+    {
+        // 如果你忘了在启动时 Configure，我们也不让它崩：直接 fallback
+        if (_configured) return;
+        _filePath = Path.Combine(Application.persistentDataPath, FileName);
+        _configured = true;
+    }
+
+    private static bool EnsureWritable(string dir)
+    {
+        try
+        {
+            Directory.CreateDirectory(dir);
+            string probe = Path.Combine(dir, ".write_test");
+            File.WriteAllText(probe, "ok");
+            File.Delete(probe);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     private static void EnsureLoaded()
     {
+        EnsureConfigured();
         if (_db != null && _map != null) return;
 
         _db = new Db();
         _map = new Dictionary<string, Entry>();
 
-        if (!File.Exists(FilePath)) return;
+        if (!File.Exists(_filePath)) return;
 
         try
         {
-            string json = File.ReadAllText(FilePath);
+            string json = File.ReadAllText(_filePath);
             var loaded = JsonUtility.FromJson<Db>(json);
             if (loaded?.entries != null)
             {
@@ -94,10 +157,6 @@ public static class ImageProgressRepository
         return false;
     }
 
-    /// <summary>
-    /// 保存（进度+锁难度+cells+网格尺寸）
-    /// 规则：只要 progress01 > 0，就锁定 difficulty。
-    /// </summary>
     public static void Set(string imageId, Difficulty difficulty, int gridX, int gridY, float[] cells, float progress01)
     {
         EnsureLoaded();
@@ -120,7 +179,10 @@ public static class ImageProgressRepository
         e.progress01 = progress01;
         e.gridX = gridX;
         e.gridY = gridY;
-        e.cells = cells ?? Array.Empty<float>();
+
+        // store a copy (avoid external mutation)
+        e.cells = cells != null ? (float[])cells.Clone() : Array.Empty<float>();
+
         e.lastUpdatedUtcTicks = DateTime.UtcNow.Ticks;
 
         Save();
@@ -141,10 +203,11 @@ public static class ImageProgressRepository
 
     private static void Save()
     {
+        EnsureConfigured();
         try
         {
             string json = JsonUtility.ToJson(_db, true);
-            File.WriteAllText(FilePath, json);
+            File.WriteAllText(_filePath, json);
         }
         catch (Exception e)
         {

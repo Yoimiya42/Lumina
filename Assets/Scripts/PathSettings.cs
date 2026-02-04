@@ -10,9 +10,12 @@ public class PathSettings : ScriptableObject
     public string userContentFolder = "UserContent";
 
     [Header("MyGame Paths")]
+    [Header("MyGame Paths")]
     public string myGameFolder = "Lumina";
     public string imagesFolder = "Images";
     public string thumbnailsFolder = "Thumbnails";
+    public string savesFolder = "Saves";  
+
 
     [Header("Optional Overrides (Advanced)")]
     [Tooltip("If not empty, treat this as absolute LauncherRoot. Leave empty for auto-detection.")]

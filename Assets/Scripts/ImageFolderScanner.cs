@@ -53,7 +53,11 @@ public class ImageFolderScanner : MonoBehaviour
         }
 
         ContentPaths.EnsureFolders(pathSettings);
+
+        ImageProgressRepository.Configure(pathSettings);
+        Debug.Log("[ImageProgressRepository] SavePath = " + ImageProgressRepository.DebugGetFilePath());
     }
+
 
     [ContextMenu("Scan Now")]
     public void Scan()
