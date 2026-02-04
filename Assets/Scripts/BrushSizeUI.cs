@@ -28,7 +28,6 @@ public class BrushSizeUI : MonoBehaviour
         currentIndex = index;
         painter.SetBrushRadius(presets[index]);
 
-        // 可选：高亮按钮（简单做法：改 interactable）
         if (buttons != null && buttons.Length == presets.Length)
         {
             for (int i = 0; i < buttons.Length; i++)
