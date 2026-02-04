@@ -1,12 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>
-/// Renders a grid overlay (cell borders) on top of a target RectTransform.
-/// Each cell has a border object (4 thin Images). You can:
-/// - Set cell as completed: hide border (or change color)
-/// - Highlight a set of cells: change border color/width temporarily
-/// </summary>
 public class GridOverlayRenderer : MonoBehaviour
 {
     [Header("Target")]
@@ -19,8 +13,8 @@ public class GridOverlayRenderer : MonoBehaviour
     [Header("Line Style")]
     [SerializeField] private float lineThickness = 2f;
     [SerializeField] private Color normalColor = Color.white;
-    [SerializeField] private Color highlightColor = new Color(0.7f, 0.2f, 1f, 1f); // purple-ish
-    [SerializeField] private Color completedColor = new Color(1f, 1f, 1f, 0f);     // transparent (hide effect)
+    [SerializeField] private Color highlightColor = new Color(0.7f, 0.2f, 1f, 1f);
+    [SerializeField] private Color completedColor = new Color(1f, 1f, 1f, 0f);
 
     [Header("Behavior")]
     [Tooltip("If true, completed cell border objects will be disabled.")]
@@ -28,20 +22,45 @@ public class GridOverlayRenderer : MonoBehaviour
 
     private CellBorder[,] borders;
     private bool[,] completed;
+    private RectTransform _self;
 
     private void Awake()
     {
-        if (targetRect == null)
+        // 允许 Awake 做一次初始化，但不依赖它（关键）
+        EnsureInitialized();
+        EnsureBuilt();
+    }
+
+    private bool EnsureInitialized()
+    {
+        if (_self == null)
+            _self = GetComponent<RectTransform>();
+
+        if (_self == null)
         {
+            Debug.LogError("[GridOverlayRenderer] Must be on a UI object with RectTransform.");
             enabled = false;
-            return;
+            return false;
         }
 
-        BuildGrid();
+        // 允许不填：默认父节点（通常是 ColorImage）
+        if (targetRect == null)
+            targetRect = transform.parent as RectTransform;
+
+        if (targetRect == null)
+        {
+            Debug.LogError("[GridOverlayRenderer] targetRect is null and parent is not RectTransform.");
+            enabled = false;
+            return false;
+        }
+
+        return true;
     }
 
     public void Configure(int gx, int gy)
     {
+        if (!EnsureInitialized()) return;
+
         gridX = Mathf.Max(1, gx);
         gridY = Mathf.Max(1, gy);
         Rebuild();
@@ -49,7 +68,9 @@ public class GridOverlayRenderer : MonoBehaviour
 
     public void Rebuild()
     {
-        // Destroy old
+        if (!EnsureInitialized()) return;
+
+        // Destroy old safely
         if (borders != null)
         {
             for (int y = 0; y < borders.GetLength(1); y++)
@@ -58,22 +79,33 @@ public class GridOverlayRenderer : MonoBehaviour
                         Destroy(borders[x, y].gameObject);
         }
 
-        BuildGrid();
+        borders = null;
+        completed = null;
+
+        EnsureBuilt();
     }
 
-    private void BuildGrid()
+    private bool IsBuilt()
     {
+        return borders != null && completed != null
+               && borders.GetLength(0) == gridX && borders.GetLength(1) == gridY
+               && completed.GetLength(0) == gridX && completed.GetLength(1) == gridY;
+    }
+
+    private void EnsureBuilt()
+    {
+        if (!EnsureInitialized()) return;
+        if (IsBuilt()) return;
+
+        // overlay 自身铺满父节点（ColorImage）
+        _self.anchorMin = Vector2.zero;
+        _self.anchorMax = Vector2.one;
+        _self.offsetMin = Vector2.zero;
+        _self.offsetMax = Vector2.zero;
+
         borders = new CellBorder[gridX, gridY];
         completed = new bool[gridX, gridY];
 
-        // Ensure this overlay matches target size
-        RectTransform self = transform as RectTransform;
-        self.anchorMin = Vector2.zero;
-        self.anchorMax = Vector2.one;
-        self.offsetMin = Vector2.zero;
-        self.offsetMax = Vector2.zero;
-
-        // Create per-cell border
         for (int y = 0; y < gridY; y++)
         {
             for (int x = 0; x < gridX; x++)
@@ -98,7 +130,8 @@ public class GridOverlayRenderer : MonoBehaviour
 
     public void SetCellCompleted(int x, int y, bool isCompleted)
     {
-        if (!InRange(x, y)) return;
+        EnsureBuilt();
+        if (!InRange(x, y) || completed == null || borders == null) return;
 
         completed[x, y] = isCompleted;
 
@@ -106,17 +139,16 @@ public class GridOverlayRenderer : MonoBehaviour
         if (border == null) return;
 
         if (disableOnComplete)
-        {
             border.gameObject.SetActive(!isCompleted);
-        }
         else
-        {
             border.SetColor(isCompleted ? completedColor : normalColor);
-        }
     }
 
     public void ClearHighlights()
     {
+        EnsureBuilt();
+        if (completed == null || borders == null) return;
+
         for (int y = 0; y < gridY; y++)
             for (int x = 0; x < gridX; x++)
             {
@@ -128,35 +160,48 @@ public class GridOverlayRenderer : MonoBehaviour
             }
     }
 
-
     public void HighlightCell(int x, int y)
     {
-        if (!InRange(x, y)) return;
+        EnsureBuilt();
+        if (!InRange(x, y) || completed == null || borders == null) return;
         if (completed[x, y]) return;
         borders[x, y]?.SetColor(highlightColor);
     }
 
+    /// <summary>
+    /// 批量应用完成状态：cells[idx] >= 1 => 隐藏网格线
+    /// </summary>
+    public void ApplyCompletedFromCells(float[] cells)
+    {
+        EnsureBuilt();
+        if (cells == null || cells.Length != gridX * gridY) return;
+
+        for (int y = 0; y < gridY; y++)
+            for (int x = 0; x < gridX; x++)
+            {
+                int idx = y * gridX + x;
+                bool done = cells[idx] >= 1f;
+                SetCellCompleted(x, y, done);
+            }
+    }
+
     private bool InRange(int x, int y) => x >= 0 && x < gridX && y >= 0 && y < gridY;
 
-    /// <summary>
-    /// Helper component that creates 4 thin Image children as border lines.
-    /// </summary>
     private class CellBorder : MonoBehaviour
     {
         private Image top, bottom, left, right;
 
         public void Init(float thickness, Color color)
         {
-            top = CreateLine("Top", thickness, color);
-            bottom = CreateLine("Bottom", thickness, color);
-            left = CreateLine("Left", thickness, color);
-            right = CreateLine("Right", thickness, color);
+            top = CreateLine("Top", color);
+            bottom = CreateLine("Bottom", color);
+            left = CreateLine("Left", color);
+            right = CreateLine("Right", color);
 
-            // Position lines inside this cell rect
-            SetupLine(top.rectTransform, anchorMin: new Vector2(0, 1), anchorMax: new Vector2(1, 1), sizeDelta: new Vector2(0, thickness), pivot: new Vector2(0.5f, 1));
-            SetupLine(bottom.rectTransform, anchorMin: new Vector2(0, 0), anchorMax: new Vector2(1, 0), sizeDelta: new Vector2(0, thickness), pivot: new Vector2(0.5f, 0));
-            SetupLine(left.rectTransform, anchorMin: new Vector2(0, 0), anchorMax: new Vector2(0, 1), sizeDelta: new Vector2(thickness, 0), pivot: new Vector2(0, 0.5f));
-            SetupLine(right.rectTransform, anchorMin: new Vector2(1, 0), anchorMax: new Vector2(1, 1), sizeDelta: new Vector2(thickness, 0), pivot: new Vector2(1, 0.5f));
+            SetupLine(top.rectTransform, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, thickness), new Vector2(0.5f, 1));
+            SetupLine(bottom.rectTransform, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, thickness), new Vector2(0.5f, 0));
+            SetupLine(left.rectTransform, new Vector2(0, 0), new Vector2(0, 1), new Vector2(thickness, 0), new Vector2(0, 0.5f));
+            SetupLine(right.rectTransform, new Vector2(1, 0), new Vector2(1, 1), new Vector2(thickness, 0), new Vector2(1, 0.5f));
         }
 
         public void SetColor(Color c)
@@ -167,11 +212,11 @@ public class GridOverlayRenderer : MonoBehaviour
             if (right) right.color = c;
         }
 
-        private Image CreateLine(string name, float thickness, Color color)
+        private Image CreateLine(string name, Color color)
         {
             GameObject go = new GameObject(name, typeof(RectTransform), typeof(Image));
             go.transform.SetParent(transform, false);
-            Image img = go.GetComponent<Image>();
+            var img = go.GetComponent<Image>();
             img.raycastTarget = false;
             img.color = color;
             return img;

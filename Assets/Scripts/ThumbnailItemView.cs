@@ -13,8 +13,8 @@ public class ThumbnailItemView : MonoBehaviour
     private Button _button;
     private System.Action<ThumbnailItemView> _onClick;
 
-    public string ImagePath { get; private set; } // absolute path
-    public string ImageId { get; private set; }   // sha1(file bytes)
+    public string ImagePath { get; private set; } // 用于加载原图
+    public string ImageId { get; private set; }   // 存档key（sha1 bytes）
 
     private void Awake()
     {
@@ -53,8 +53,8 @@ public class ThumbnailItemView : MonoBehaviour
     {
         if (progressText == null) return;
 
-        if (!string.IsNullOrEmpty(ImagePath) &&
-            ProgressStore.TryGet(ImagePath, out var entry) &&
+        if (!string.IsNullOrEmpty(ImageId) &&
+            ImageProgressRepository.TryGet(ImageId, out var entry) &&
             entry != null &&
             entry.progress01 > 0f)
         {

@@ -13,48 +13,41 @@ public class GameEntryController : MonoBehaviour
     [SerializeField] private GameObject gamePanel;
 
     [Header("Game UI")]
-    [SerializeField] private Image gameColorImage;                 // ColorImage (Image)
-    [SerializeField] private AspectRatioFitter aspectFitter;       // AspectBox上的AspectRatioFitter
-    [SerializeField] private GridMaskPainter painter;              
+    [SerializeField] private Image gameColorImage;
+    [SerializeField] private AspectRatioFitter aspectFitter;
+    [SerializeField] private GridMaskPainter painter;
+
+    public string CurrentImageId { get; private set; }
+    public Difficulty CurrentDifficulty { get; private set; }
 
     private void Awake()
     {
-        if (menuPanel != null)
-            menuPanel.SetActive(true);
-        if (gamePanel != null)
-            gamePanel.SetActive(false);
+        gamePanel?.SetActive(false);
+        menuPanel?.SetActive(true);
     }
     public void EnterGame()
     {
-        if (menuBuilder == null)
+        string path = menuBuilder?.SelectedImagePath;
+        string imageId = menuBuilder?.SelectedImageId;
+
+        if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(imageId))
         {
-            Debug.LogError("[GameEntryController] Missing menuBuilder reference.");
+            Debug.LogWarning("[GameEntryController] No selection.");
             return;
         }
 
-        string path = menuBuilder.SelectedImagePath;
-        string id = menuBuilder.SelectedImageId;
-        Difficulty diff = menuBuilder.SelectedDifficulty;
-
-        if (string.IsNullOrEmpty(path))
+        if (gameColorImage == null || painter == null)
         {
-            Debug.LogWarning("[GameEntryController] No image selected.");
+            Debug.LogError("[GameEntryController] Missing gameColorImage or painter.");
             return;
         }
 
-        if (gameColorImage == null)
-        {
-            Debug.LogError("[GameEntryController] Missing gameColorImage reference.");
-            return;
-        }
-
-        Sprite fullSprite = LoadSpriteFromFile(path);
+        var fullSprite = LoadSpriteFromFile(path);
         if (fullSprite == null)
         {
-            Debug.LogError($"[GameEntryController] Failed to load image: {path}");
+            Debug.LogError($"[GameEntryController] Failed to load: {path}");
             return;
         }
-
 
         if (aspectFitter != null)
         {
@@ -63,21 +56,29 @@ public class GameEntryController : MonoBehaviour
             if (h > 0.01f) aspectFitter.aspectRatio = w / h;
         }
 
-        // 2) 关闭 preserveAspect（我们用 AspectRatioFitter 来保证比例）
         gameColorImage.sprite = fullSprite;
         gameColorImage.preserveAspect = false;
 
-        // 3) 初始化/重建 Painter 的网格密度（把难度传过去）
-        if (painter != null)
-            painter.BeginNewImage(fullSprite, diff);
+        Difficulty diff = menuBuilder.SelectedDifficulty;
+        float[] savedCells = null;
 
-        // 4) 切换面板
-        if (menuPanel != null) menuPanel.SetActive(false);
-        if (gamePanel != null) gamePanel.SetActive(true);
+        if (ImageProgressRepository.TryGet(imageId, out var entry) && entry != null && entry.progress01 > 0f)
+        {
+            diff = (Difficulty)entry.lockedDifficulty;
+            savedCells = entry.cells;
+        }
+
+        painter.BeginOrRestore(fullSprite, diff, savedCells);
+
+        CurrentImageId = imageId;
+        CurrentDifficulty = diff;
+
+        menuPanel?.SetActive(false);
+        gamePanel?.SetActive(true);
 
         Canvas.ForceUpdateCanvases();
 
-        Debug.Log($"[GameEntryController] EnterGame OK. imageId={id}, diff={diff}, path={path}");
+        Debug.Log($"[GameEntryController] EnterGame OK imageId={imageId} diff={diff} db={ImageProgressRepository.DebugGetFilePath()}");
     }
 
     private static Sprite LoadSpriteFromFile(string filePath)
@@ -88,8 +89,6 @@ public class GameEntryController : MonoBehaviour
                 return null;
 
             byte[] bytes = File.ReadAllBytes(filePath);
-            if (bytes == null || bytes.Length == 0)
-                return null;
 
             var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false, false);
             tex.name = Path.GetFileName(filePath);

@@ -22,14 +22,14 @@ public class ThemeMenuBuilder : MonoBehaviour
     public string SelectedImagePath { get; private set; }
     public string SelectedImageId { get; private set; }
 
-    //expose selected difficulty
     public Difficulty SelectedDifficulty
     {
         get
         {
-            if (difficultyDropdown == null) return Difficulty.Hard;
+            // 默认 Medium（如果 dropdown 没拖）
+            if (difficultyDropdown == null) return Difficulty.Medium;
             int v = Mathf.Clamp(difficultyDropdown.value, 0, 2);
-            return (Difficulty)v; // 0 Easy, 1 Medium, 2 Hard
+            return (Difficulty)v;
         }
     }
 
@@ -54,6 +54,9 @@ public class ThemeMenuBuilder : MonoBehaviour
 
         scanner.OnScanCompleted.AddListener(OnScanCompleted);
         scanner.Scan();
+
+        // Debug：查看JSON在哪里
+        // Debug.Log("ImageProgress DB: " + ImageProgressRepository.DebugGetFilePath());
     }
 
     private void OnScanCompleted(List<ImageFolderScanner.ImageItem> items)
@@ -63,12 +66,6 @@ public class ThemeMenuBuilder : MonoBehaviour
 
     public void Build(IReadOnlyList<ImageFolderScanner.ImageItem> items)
     {
-        if (contentRoot == null || sectionPrefab == null || thumbnailPrefab == null)
-        {
-            Debug.LogError("[ThemeMenuBuilder] Missing references in inspector.");
-            return;
-        }
-
         for (int i = contentRoot.childCount - 1; i >= 0; i--)
             Destroy(contentRoot.GetChild(i).gameObject);
 
@@ -88,11 +85,6 @@ public class ThemeMenuBuilder : MonoBehaviour
             section.SetTitle(g.Key);
 
             var body = section.BodyRoot;
-            if (body == null)
-            {
-                Debug.LogError($"[ThemeMenuBuilder] BodyRoot null on section {g.Key}. Check prefab refs.");
-                continue;
-            }
 
             foreach (var it in g)
             {
@@ -101,8 +93,7 @@ public class ThemeMenuBuilder : MonoBehaviour
                 thumb.Bind(it.sprite, it.filePath, it.imageId, OnThumbnailClicked);
             }
 
-            var fitter = body.GetComponent<ThemeBodyHeightFitter>();
-            fitter?.Refit();
+            body.GetComponent<ThemeBodyHeightFitter>()?.Refit();
         }
 
         Canvas.ForceUpdateCanvases();
@@ -121,8 +112,7 @@ public class ThemeMenuBuilder : MonoBehaviour
             return;
         }
 
-        if (_selectedItem != null)
-            _selectedItem.SetSelected(false);
+        _selectedItem?.SetSelected(false);
 
         _selectedItem = clicked;
         _selectedItem.SetSelected(true);
@@ -134,7 +124,7 @@ public class ThemeMenuBuilder : MonoBehaviour
 
     private void UpdateUiLockState()
     {
-        bool hasSelection = !string.IsNullOrEmpty(SelectedImagePath);
+        bool hasSelection = !string.IsNullOrEmpty(SelectedImageId);
 
         if (startButton != null)
             startButton.interactable = hasSelection;
@@ -145,10 +135,11 @@ public class ThemeMenuBuilder : MonoBehaviour
         bool canReset = false;
 
         if (hasSelection &&
-            ProgressStore.TryGet(SelectedImagePath, out var entry) &&
+            ImageProgressRepository.TryGet(SelectedImageId, out var entry) &&
             entry != null &&
             entry.progress01 > 0f)
         {
+            // 有进度：锁定难度
             if (difficultyDropdown != null)
             {
                 difficultyDropdown.value = Mathf.Clamp(entry.lockedDifficulty, 0, difficultyDropdown.options.Count - 1);
@@ -164,16 +155,15 @@ public class ThemeMenuBuilder : MonoBehaviour
 
     private void ResetSelected()
     {
-        if (string.IsNullOrEmpty(SelectedImagePath))
+        if (string.IsNullOrEmpty(SelectedImageId))
             return;
 
-        ProgressStore.Reset(SelectedImagePath);
+        ImageProgressRepository.Reset(SelectedImageId);
 
         if (difficultyDropdown != null)
-            difficultyDropdown.interactable = !string.IsNullOrEmpty(SelectedImagePath);
+            difficultyDropdown.interactable = !string.IsNullOrEmpty(SelectedImageId);
 
         _selectedItem?.RefreshProgressFromStore();
-
         UpdateUiLockState();
     }
 }
