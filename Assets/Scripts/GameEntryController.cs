@@ -15,7 +15,7 @@ public class GameEntryController : MonoBehaviour
     [Header("Game UI")]
     [SerializeField] private Image gameColorImage;                 // ColorImage (Image)
     [SerializeField] private AspectRatioFitter aspectFitter;       // AspectBox上的AspectRatioFitter
-    [SerializeField] private GridMaskPainter painter;              // 上色脚本
+    [SerializeField] private GridMaskPainter painter;              
 
     private void Awake()
     {
@@ -55,7 +55,7 @@ public class GameEntryController : MonoBehaviour
             return;
         }
 
-        // 1) 让容器按图片比例变化（避免留白导致网格错位）
+
         if (aspectFitter != null)
         {
             float w = fullSprite.rect.width;

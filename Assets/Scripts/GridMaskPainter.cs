@@ -64,18 +64,18 @@ public class GridMaskPainter : MonoBehaviour
             return;
         }
 
-        // 仅创建运行时材质；不要在Awake里锁死grid密度（由 BeginNewImage 决定）
+        
         runtimeMainMat = new Material(mainMaterial);
         targetImage.material = runtimeMainMat;
 
         if (palmCursor != null)
             palmCursor.gameObject.SetActive(showPalmCursor);
 
-        // fallback preset（如果你在编辑器里直接测试，不走BeginNewImage）
+        
         ApplyGridPreset(gridDensity);
         AllocateMask(gridX, gridY);
 
-        // 如果 targetImage.sprite 已经有了，就同步一次主纹理
+        
         if (targetImage.sprite != null)
             runtimeMainMat.SetTexture(MainTexProp, targetImage.sprite.texture);
 
