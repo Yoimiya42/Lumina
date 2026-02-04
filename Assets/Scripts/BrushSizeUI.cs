@@ -17,7 +17,7 @@ public class BrushSizeUI : MonoBehaviour
     private void Start()
     {
         // Default to 0.05f size
-        SelectPreset(1);
+        SelectPreset(2);
     }
 
     public void SelectPreset(int index)
