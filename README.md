@@ -1,5 +1,5 @@
 # Lumina
-*A Calm, Grid-Based Coloring Game Built with Unity*
+*Breath-Driven Oil Painting-Style Coloring Game*
 
 ---
 
