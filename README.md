@@ -41,6 +41,33 @@ This game is designed for:
 The design prioritizes **predictability**, **low sensory load**, and **non-judgmental feedback**.
 
 ---
+## Technology Stack
+
+- **Game Engine:** Unity 2022.3.62f3 LTS
+- **Programming Language:** C#
+- **Rendering:** 2D UI-based rendering
+- **Platforms:**  
+  - Windows (Standalone Build)  
+  - WebGL (optional, depending on deployment)
+
+---
+
+## Project Structure (Development)
+
+This repository contains the **Unity source project only**, intended for development and review.
+
+Included:
+- `Assets/`
+- `Packages/`
+- `ProjectSettings/`
+- `UserContent/Lumina/`
+  - `Images/` Users can create albums here to manage images they want to color.
+  - `Saves/`  Save the image's coloring process data.
+`
+
+Playable builds are distributed separately.
+
+---
 
 ## Core Gameplay Flow
 
@@ -80,33 +107,6 @@ The design prioritizes **predictability**, **low sensory load**, and **non-judgm
 
 - **Process Over Outcome**  
   The act of slow coloring is the primary experience.
-
----
-## Technology Stack
-
-- **Game Engine:** Unity 2022.3.62f3 LTS
-- **Programming Language:** C#
-- **Rendering:** 2D UI-based rendering
-- **Platforms:**  
-  - Windows (Standalone Build)  
-  - WebGL (optional, depending on deployment)
-
----
-
-## Project Structure (Development)
-
-This repository contains the **Unity source project only**, intended for development and review.
-
-Included:
-- `Assets/`
-- `Packages/`
-- `ProjectSettings/`
-
-Not included:
-- Built executables (`.exe`, WebGL output)
-- Unity cache and temporary files (`Library/`, `Temp/`)
-
-Playable builds are distributed separately.
 
 ---
 
