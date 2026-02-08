@@ -4,7 +4,7 @@ public class GameExitController : MonoBehaviour
 {
     [Header("Refs")]
     [SerializeField] private GameEntryController entryController;
-    [SerializeField] private GridMaskPainter painter;
+    [SerializeField] private Painter painter;
 
     [Header("Panels")]
     [SerializeField] private GameObject menuPanel;

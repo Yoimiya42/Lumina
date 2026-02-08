@@ -45,7 +45,7 @@ public class GridMaskPainter : MonoBehaviour
     private Texture2D maskTex;
     private float[] cell;
 
-    private bool _ready = false; 
+    private bool _ready = false;
 
     private static readonly int MainTexProp = Shader.PropertyToID("_MainTex");
     private static readonly int MaskTexProp = Shader.PropertyToID("_MaskTex");
@@ -67,7 +67,7 @@ public class GridMaskPainter : MonoBehaviour
         targetImage.material = runtimeMainMat;
 
         if (palmCursor != null)
-            palmCursor.gameObject.SetActive(false); 
+            palmCursor.gameObject.SetActive(false);
     }
 
     /// <summary>
@@ -78,7 +78,7 @@ public class GridMaskPainter : MonoBehaviour
     /// </summary>
     public void BeginOrRestore(Sprite sprite, Difficulty difficulty, float[] savedCellsOrNull)
     {
-        _ready = false; 
+        _ready = false;
 
         // 1) Apply sprite + main texture
         if (sprite != null)
@@ -111,7 +111,7 @@ public class GridMaskPainter : MonoBehaviour
 
         // 6) Apply visuals
         ApplyMask();
-        ApplyCompletedOverlayFromCells(); 
+        ApplyCompletedOverlayFromCells();
 
         UpdateProgressUI();
 
@@ -149,7 +149,7 @@ public class GridMaskPainter : MonoBehaviour
 
     private void Update()
     {
-        if (!_ready) return; 
+        if (!_ready) return;
 
         // Debug clear
         if (Input.GetKeyDown(clearKey))

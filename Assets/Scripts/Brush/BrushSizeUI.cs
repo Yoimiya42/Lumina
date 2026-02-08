@@ -4,7 +4,7 @@ using UnityEngine.UI;
 public class BrushSizeUI : MonoBehaviour
 {
     [Header("Target")]
-    [SerializeField] private GridMaskPainter painter;
+    [SerializeField] private Painter painter;
 
     [Header("Preset Radii (UV)")]
     [SerializeField] private float[] presets = { 0.02f, 0.05f, 0.075f, 0.1f, 0.15f };

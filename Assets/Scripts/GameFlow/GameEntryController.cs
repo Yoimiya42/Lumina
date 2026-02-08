@@ -15,7 +15,7 @@ public class GameEntryController : MonoBehaviour
     [Header("Game UI")]
     [SerializeField] private Image gameColorImage;
     [SerializeField] private AspectRatioFitter aspectFitter;
-    [SerializeField] private GridMaskPainter painter;
+    [SerializeField] private Painter painter;
 
     public string CurrentImageId { get; private set; }
     public Difficulty CurrentDifficulty { get; private set; }
