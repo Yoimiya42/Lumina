@@ -4,15 +4,16 @@ using UnityEngine;
 using UnityEngine.Networking;
 
 /// <summary>
-/// Drives GridMaskPainter secondsPerCell using breathing metrics from FastAPI.
+/// Drives Painter secondsPerCell using breathing metrics from FastAPI.
 /// - Primary control: breathing_volume (continuous)
 /// - Optional quality bonus: breathing_regularity (0..1)
 /// - Optional tempo bonus: breathing_rate -> BPM within target range
+/// Also gates painting on/off via breathing_volume (v01) with hysteresis.
 /// </summary>
-public class BreathDrivenSpeedController : MonoBehaviour
+public class Breath : MonoBehaviour
 {
     [Header("Refs")]
-    [SerializeField] private GridMaskPainter painter;
+    [SerializeField] private Painter painter;
 
     [Header("API Base")]
     [Tooltip("Example: http://127.0.0.1:8000")]
@@ -45,6 +46,14 @@ public class BreathDrivenSpeedController : MonoBehaviour
     [Tooltip("Extra multiplier when BPM is within target range. Example 0.2 => +20%.")]
     [SerializeField] private float bpmBonus = 0.2f;
 
+    [Header("Breath Gate (Painting On/Off)")]
+    [Tooltip("If true: breathing_volume (normalized v01) will gate painting via Painter.SetBreathPaintActive().")]
+    [SerializeField] private bool gatePainting = true;
+    [Range(0f, 1f)]
+    [SerializeField] private float breathOnThreshold01 = 0.20f;
+    [Range(0f, 1f)]
+    [SerializeField] private float breathOffThreshold01 = 0.12f; // must be < On (hysteresis)
+
     [Header("Smoothing")]
     [Tooltip("Seconds; larger = smoother but more lag.")]
     [SerializeField] private float smoothTauSec = 0.25f;
@@ -68,9 +77,11 @@ public class BreathDrivenSpeedController : MonoBehaviour
     private float _targetMultiplier = 1f;
     private float _smoothedMultiplier = 1f;
 
-    private float _lastVolume = 0f;
     private float _lastRegularity = 1f;
     private float _lastRateBps = 0f;
+
+    private bool _paintGateState = false;
+    private float _lastV01 = 0f; // debug
 
     // ----------- Computed endpoints -----------
     private string UrlBreathingVolume => CombineUrl(apiBaseUrl, pathBreathingVolume);
@@ -81,13 +92,21 @@ public class BreathDrivenSpeedController : MonoBehaviour
     {
         if (painter == null)
         {
-            Debug.LogError("[BreathDrivenSpeedController] painter not assigned.");
+            Debug.LogError("[Breath] painter not assigned.");
             enabled = false;
             return;
         }
 
+        // sanity: hysteresis order
+        if (breathOffThreshold01 >= breathOnThreshold01)
+            breathOffThreshold01 = Mathf.Max(0f, breathOnThreshold01 - 0.05f);
+
         _vMin = initialVMin;
         _vMax = Mathf.Max(initialVMax, initialVMin + 1e-4f);
+
+        // Start disabled until first data arrives (optional; comment out if undesired)
+        if (gatePainting)
+            painter.SetBreathPaintActive(false);
     }
 
     private void OnEnable()
@@ -126,11 +145,10 @@ public class BreathDrivenSpeedController : MonoBehaviour
             if (vol.HasValue)
             {
                 float v = Mathf.Max(0f, vol.Value);
-                _lastVolume = v;
                 _lastRegularity = reg;
                 _lastRateBps = rateBps;
 
-                _targetMultiplier = ComputeMultiplier(v, reg, rateBps);
+                _targetMultiplier = ComputeMultiplierAndGate(v, reg, rateBps);
             }
 
             yield return wait;
@@ -148,16 +166,30 @@ public class BreathDrivenSpeedController : MonoBehaviour
         painter.SetSecondsPerCell(effSeconds);
     }
 
-    private float ComputeMultiplier(float breathingVolume, float regularity01, float breathingRateBps)
+    private float ComputeMultiplierAndGate(float breathingVolume, float regularity01, float breathingRateBps)
     {
         // --- Auto calibration for volume normalization ---
-        // vMin slowly follows lower values; vMax follows higher values.
         _vMin = Mathf.Lerp(_vMin, Mathf.Min(_vMin, breathingVolume), calibLerp);
         _vMax = Mathf.Lerp(_vMax, Mathf.Max(_vMax, breathingVolume), calibLerp);
         if (_vMax <= _vMin + 1e-4f) _vMax = _vMin + 1e-4f;
 
         // Normalize breathing_volume to 0..1
         float v01 = Mathf.Clamp01((breathingVolume - _vMin) / (_vMax - _vMin));
+        _lastV01 = v01;
+
+        // --- Gate painting by breath (with hysteresis) ---
+        if (gatePainting)
+        {
+            if (!_paintGateState && v01 >= breathOnThreshold01) _paintGateState = true;
+            else if (_paintGateState && v01 <= breathOffThreshold01) _paintGateState = false;
+
+            painter.SetBreathPaintActive(_paintGateState);
+        }
+        else
+        {
+            // If gate disabled, keep painting enabled.
+            painter.SetBreathPaintActive(true);
+        }
 
         // Map to multiplier (soft curve)
         float m = minMultiplier + (maxMultiplier - minMultiplier) * Mathf.Pow(v01, gamma);
@@ -172,17 +204,14 @@ public class BreathDrivenSpeedController : MonoBehaviour
         // Optional: rate bonus based on BPM window
         if (useRateBonus)
         {
-            float bpm = breathingRateBps * 60f; // IMPORTANT: backend is breaths/sec
+            float bpm = breathingRateBps * 60f; // backend is breaths/sec
             bool inRange = bpm >= targetBpmMin && bpm <= targetBpmMax;
 
             if (inRange)
-            {
-                // Example: bpmBonus=0.2 => +20% multiplier
                 m *= (1f + Mathf.Max(0f, bpmBonus));
-            }
         }
 
-        return Mathf.Clamp(m, minMultiplier, maxMultiplier * 3f); // allow slight overshoot if bonuses stack
+        return Mathf.Clamp(m, minMultiplier, maxMultiplier * 3f);
     }
 
     private IEnumerator GetFloat(string url, string key, Action<float> onValue)
@@ -193,10 +222,7 @@ public class BreathDrivenSpeedController : MonoBehaviour
             yield return req.SendWebRequest();
 
             if (req.result != UnityWebRequest.Result.Success)
-            {
-                // Fail silently; keep last values to avoid spam.
                 yield break;
-            }
 
             string json = req.downloadHandler.text;
             if (TryParseSingleFloat(json, key, out float value))

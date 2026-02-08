@@ -45,7 +45,7 @@ public class Painter : MonoBehaviour
     private Texture2D maskTex;
     private float[] cell;
 
-    private bool _ready = false; 
+    private bool _ready = false;
 
     private static readonly int MainTexProp = Shader.PropertyToID("_MainTex");
     private static readonly int MaskTexProp = Shader.PropertyToID("_MaskTex");
@@ -53,11 +53,24 @@ public class Painter : MonoBehaviour
     public int GridX => gridX;
     public int GridY => gridY;
 
+    [Header("Breath Drive (gate painting)")]
+    [SerializeField] private bool gatePaintingByBreath = true;
+    private bool breathPaintActive = false;
+
+    public void SetBreathPaintActive(bool active)
+    {
+        if (breathPaintActive == active) return;
+        breathPaintActive = active;
+
+        // TEMP DEBUG: delete after verified
+        Debug.Log($"[Painter] breathPaintActive = {breathPaintActive}");
+    }
+
     private void Awake()
     {
         if (targetImage == null || targetCanvas == null || mainMaterial == null)
         {
-            Debug.LogError("[GridMaskPainter] Missing references in Inspector.");
+            Debug.LogError("[Painter] Missing references in Inspector.");
             enabled = false;
             return;
         }
@@ -67,18 +80,12 @@ public class Painter : MonoBehaviour
         targetImage.material = runtimeMainMat;
 
         if (palmCursor != null)
-            palmCursor.gameObject.SetActive(false); 
+            palmCursor.gameObject.SetActive(false);
     }
 
-    /// <summary>
-    /// Enter game / restore state.
-    /// - sprite: original full-res sprite for gameplay
-    /// - difficulty: determines grid resolution only
-    /// - savedCellsOrNull: length must equal gridX*gridY, values 0..1
-    /// </summary>
     public void BeginOrRestore(Sprite sprite, Difficulty difficulty, float[] savedCellsOrNull)
     {
-        _ready = false; 
+        _ready = false;
 
         // 1) Apply sprite + main texture
         if (sprite != null)
@@ -111,7 +118,7 @@ public class Painter : MonoBehaviour
 
         // 6) Apply visuals
         ApplyMask();
-        ApplyCompletedOverlayFromCells(); 
+        ApplyCompletedOverlayFromCells();
 
         UpdateProgressUI();
 
@@ -149,16 +156,15 @@ public class Painter : MonoBehaviour
 
     private void Update()
     {
-        if (!_ready) return; 
+        if (!_ready) return;
 
-        // Debug clear
         if (Input.GetKeyDown(clearKey))
         {
             ClearAll();
             return;
         }
 
-        bool isHolding = Input.GetMouseButton(mouseButton);
+        bool isPaintAllowed = gatePaintingByBreath ? breathPaintActive : Input.GetMouseButton(mouseButton);
         bool hasUV = TryGetBrushUV(out Vector2 uv);
 
         if (palmCursor != null)
@@ -174,7 +180,7 @@ public class Painter : MonoBehaviour
                 HighlightCoveredCells(uv, brushRadius);
         }
 
-        if (!isHolding || !hasUV) return;
+        if (!isPaintAllowed || !hasUV) return;
 
         float delta = (1f / Mathf.Max(0.1f, secondsPerCell)) * Time.deltaTime;
         if (FillCoveredCells(uv, brushRadius, delta))
@@ -184,10 +190,6 @@ public class Painter : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Public clear (runtime reset inside gameplay).
-    /// Note: Your "Reset" button in menu should delete save; this only clears current session visuals.
-    /// </summary>
     public void ClearAll()
     {
         ClearAll_Internal();
@@ -228,15 +230,9 @@ public class Painter : MonoBehaviour
             totalFill01 += Mathf.Clamp01(cell[i]);
     }
 
-    /// <summary>
-    /// Apply "completed" visual state to overlay based on cell[].
-    /// This guarantees: completed cells => grid lines hidden (persisted on replay).
-    /// Also guarantees: non-completed cells => grid lines visible.
-    /// </summary>
     private void ApplyCompletedOverlayFromCells()
     {
         if (gridOverlay == null || cell == null) return;
-
         gridOverlay.ApplyCompletedFromCells(cell);
     }
 
