@@ -1,5 +1,5 @@
 [![Download Latest](https://img.shields.io/badge/Download-Latest%20Release-blue)](https://github.com/Yoimiya42/Lumina/releases/tag/v1.0.1)
-
+[![Changelog](https://img.shields.io/badge/Changelog-v1.1.0-blue)](./CHANGELOG.md)
 # Lumina
 *Breath-Driven Oil Painting-Style Coloring Game*
 
