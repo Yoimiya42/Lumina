@@ -2915,6 +2915,7 @@ GameObject:
   - component: {fileID: 710754584}
   - component: {fileID: 710754585}
   - component: {fileID: 710754586}
+  - component: {fileID: 710754587}
   m_Layer: 0
   m_Name: GameRoot
   m_TagString: Untagged
@@ -3008,6 +3009,42 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   pathSettings: {fileID: 11400000, guid: bb0d8cb1ba26ad34594a962a601ad913, type: 2}
   seedFolderName: SeedImages
+--- !u!114 &710754587
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 710754578}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7347ef565d9f1ac449fb33b6f400b538, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  painter: {fileID: 710754583}
+  apiBaseUrl: http://127.0.0.1:8000
+  pollIntervalSec: 0.1
+  requestTimeoutSec: 2
+  baseSecondsPerCell: 1.5
+  minMultiplier: 0.2
+  maxMultiplier: 2
+  gamma: 0.75
+  useRegularity: 1
+  regularityWeight: 0.3
+  useRateBonus: 1
+  targetBpmMin: 6
+  targetBpmMax: 10
+  bpmBonus: 0.2
+  gatePainting: 1
+  breathOnThreshold01: 0.03
+  breathOffThreshold01: 0.05
+  smoothTauSec: 0.25
+  calibLerp: 0.02
+  initialVMin: 0
+  initialVMax: 0.05
+  pathBreathingVolume: /webhooks/breathing-volume
+  pathBreathingRegularity: /webhooks/breathing-regularity
+  pathBreathingRate: /webhooks/breathing-rate
 --- !u!1 &715616830
 GameObject:
   m_ObjectHideFlags: 0
