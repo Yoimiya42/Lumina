@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 ---
 
 
-## [v1.1.0] - 2026-02-09
+## [v1.1.0] (Private Release)- 2026-02-09
 
 ### Added
 - `MotionInput` integration: Use `fun-shapes/point-click.json`, in `data/config.json`:
