@@ -16,4 +16,4 @@
 *.svd
 *.pdb
 
-Assets/Scripts/Old/*
+UserContent/
