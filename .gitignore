@@ -15,5 +15,6 @@
 *.booproj
 *.svd
 *.pdb
+*.meta
 
 UserContent/
