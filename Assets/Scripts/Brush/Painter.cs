@@ -36,6 +36,10 @@ public class Painter : MonoBehaviour
     [SerializeField] private Slider progressSlider;
     [SerializeField] private TMP_Text progressText;
 
+    [Header("Completion Animation")]
+    [SerializeField] private Animator completionAnimator;
+    private bool hasPlayedCompletion = false;
+
     private int gridX;
     private int gridY;
 
@@ -86,6 +90,7 @@ public class Painter : MonoBehaviour
     public void BeginOrRestore(Sprite sprite, Difficulty difficulty, float[] savedCellsOrNull)
     {
         _ready = false;
+        hasPlayedCompletion = false;
 
         // 1) Apply sprite + main texture
         if (sprite != null)
@@ -195,6 +200,9 @@ public class Painter : MonoBehaviour
         ClearAll_Internal();
         ApplyMask();
         ApplyCompletedOverlayFromCells();
+
+        hasPlayedCompletion = false;
+
         UpdateProgressUI();
     }
 
@@ -355,8 +363,20 @@ public class Painter : MonoBehaviour
     private void UpdateProgressUI()
     {
         float p = GetProgress01();
-        if (progressSlider != null) progressSlider.value = p;
-        if (progressText != null) progressText.text = Mathf.RoundToInt(p * 100f) + "%";
+
+        if (progressSlider != null)
+            progressSlider.value = p;
+
+        if (progressText != null)
+            progressText.text = Mathf.RoundToInt(p * 100f) + "%";
+
+        if (!hasPlayedCompletion && p >= 1f)
+        {
+            hasPlayedCompletion = true;
+
+            if (completionAnimator != null)
+                completionAnimator.SetTrigger("Play");
+        }
     }
 
     private static bool CircleIntersectsRect(Vector2 c, float r2, float xMin, float yMin, float xMax, float yMax)
