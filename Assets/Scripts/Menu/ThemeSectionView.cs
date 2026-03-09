@@ -23,7 +23,6 @@ public class ThemeSectionView : MonoBehaviour
         if (toggleButton != null)
             toggleButton.onClick.AddListener(Toggle);
 
-        // 确保引用
         if (bodyFitter == null && bodyRoot != null)
             bodyFitter = bodyRoot.GetComponent<ThemeBodyHeightFitter>();
 

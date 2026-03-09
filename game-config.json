@@ -1,0 +1,18 @@
+{
+  "name": "Lumina",
+  "type": "FunBreathing",
+  "description": "Breath-Driven Oil Painting-Style Coloring Game",
+  "exePath": "games/Lumina/Lumina.exe",
+  "thumbnail": "../../games/Lumina/assets/icons/favicon.ico",
+  "largeThumbnail": "../../games/Lumina/assets/icons/16_9_thumbnail.png",
+  "helpPath": "../../games/Lumina/help/help.md",
+  "demoVideoPath": "../../games/Lumina/help/demo.mp4",
+  "functions": {
+    "hasGenAI": false,
+    "supportedInputMethods": [ "mouse+keyboard", "motionInput" ]
+  },
+  "requirements": {
+    "motionInputMethod": "point-click",
+    "requiresBreathingInput": true
+  }
+}

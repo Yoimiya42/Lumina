@@ -70,7 +70,7 @@ MonoBehaviour:
   m_CellSize: {x: 160, y: 160}
   m_Spacing: {x: 46, y: 46}
   m_Constraint: 1
-  m_ConstraintCount: 6
+  m_ConstraintCount: 7
 --- !u!114 &8299785576404908453
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -195,13 +195,13 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 24
-  m_fontSizeBase: 24
+  m_fontSize: 30
+  m_fontSizeBase: 30
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 0
+  m_fontStyle: 1
   m_HorizontalAlignment: 1
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -396,7 +396,7 @@ MonoBehaviour:
   headerBackground: {fileID: 1512885288410298582}
   body: {fileID: 3081795054682390952}
   collapsedColor: {r: 0.69803923, g: 0.8000001, b: 0.9215687, a: 1}
-  expandedColor: {r: 0.9811321, g: 0.38751742, b: 0, a: 1}
+  expandedColor: {r: 0.98039216, g: 0.9340042, b: 0, a: 1}
   startExpanded: 0
 --- !u!1 &6905706785175077648
 GameObject:
