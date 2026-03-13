@@ -25,8 +25,15 @@ public class ThumbnailItemView : MonoBehaviour
 
         if (thumbImage != null) thumbImage.raycastTarget = false;
         if (progressText != null) progressText.raycastTarget = false;
+        if (trophyIcon != null) trophyIcon.raycastTarget = false;
 
-        _button.onClick.AddListener(() => _onClick?.Invoke(this));
+        _button.onClick.AddListener(HandleClicked);
+    }
+
+    private void OnDestroy()
+    {
+        if (_button != null)
+            _button.onClick.RemoveListener(HandleClicked);
     }
 
     public void Bind(Sprite sprite, string imagePath, string imageId, System.Action<ThumbnailItemView> onClick)
@@ -52,8 +59,6 @@ public class ThumbnailItemView : MonoBehaviour
 
     public void RefreshProgressFromStore()
     {
-        if (progressText == null) return;
-
         if (!string.IsNullOrEmpty(ImageId) &&
             ImageProgressRepository.TryGet(ImageId, out var entry) &&
             entry != null &&
@@ -62,22 +67,42 @@ public class ThumbnailItemView : MonoBehaviour
             if (entry.progress01 >= 0.999f)
             {
                 // Completed: display trophy
-                progressText.gameObject.SetActive(false);
-                trophyIcon.gameObject.SetActive(true);
+                SetProgressVisible(false);
+                SetTrophyVisible(true);
             }
             else
             {
                 // Uncompleted: display percentage
-                trophyIcon.gameObject.SetActive(false);
-                progressText.gameObject.SetActive(true);
-                progressText.text = Mathf.RoundToInt(entry.progress01 * 100f) + "%";
+                SetTrophyVisible(false);
+                SetProgressVisible(true);
+                if (progressText != null)
+                    progressText.text = Mathf.RoundToInt(entry.progress01 * 100f) + "%";
             }
         }
         else
         {
-            progressText.text = "";
-            trophyIcon.gameObject.SetActive(false);
-            progressText.gameObject.SetActive(false);
+            if (progressText != null)
+                progressText.text = "";
+
+            SetTrophyVisible(false);
+            SetProgressVisible(false);
         }
+    }
+
+    private void HandleClicked()
+    {
+        _onClick?.Invoke(this);
+    }
+
+    private void SetProgressVisible(bool visible)
+    {
+        if (progressText != null)
+            progressText.gameObject.SetActive(visible);
+    }
+
+    private void SetTrophyVisible(bool visible)
+    {
+        if (trophyIcon != null)
+            trophyIcon.gameObject.SetActive(visible);
     }
 }

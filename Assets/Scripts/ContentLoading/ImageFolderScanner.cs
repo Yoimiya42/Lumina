@@ -58,11 +58,15 @@ public class ImageFolderScanner : MonoBehaviour
         Debug.Log("[ImageProgressRepository] SavePath = " + ImageProgressRepository.DebugGetFilePath());
     }
 
+    private void OnDestroy()
+    {
+        ReleaseLoadedItems();
+    }
 
     [ContextMenu("Scan Now")]
     public void Scan()
     {
-        items.Clear();
+        ReleaseLoadedItems();
 
         string imagesRoot = ResolveImagesRoot();
         if (!Directory.Exists(imagesRoot))
@@ -85,6 +89,26 @@ public class ImageFolderScanner : MonoBehaviour
 
         Debug.Log($"[ImageFolderScanner] Scan completed. Found {items.Count} images. Dir={imagesRoot}");
         OnScanCompleted?.Invoke(new List<ImageItem>(items));
+    }
+
+    private void ReleaseLoadedItems()
+    {
+        if (items == null || items.Count == 0)
+            return;
+
+        for (int i = 0; i < items.Count; i++)
+        {
+            var sprite = items[i]?.sprite;
+            if (sprite == null)
+                continue;
+
+            var tex = sprite.texture;
+            UnityEngine.Object.Destroy(sprite);
+            if (tex != null)
+                UnityEngine.Object.Destroy(tex);
+        }
+
+        items.Clear();
     }
 
     private string ResolveImagesRoot()

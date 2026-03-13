@@ -4748,8 +4748,8 @@ MonoBehaviour:
   targetRect: {fileID: 1999006259}
   gridX: 16
   gridY: 16
-  lineThickness: 1.5
-  normalColor: {r: 1, g: 1, b: 1, a: 1}
+  lineThickness: 0.5
+  normalColor: {r: 1, g: 1, b: 1, a: 0.5882353}
   highlightColor: {r: 0.81761, g: 0.28539208, b: 0.75632894, a: 1}
   completedColor: {r: 1, g: 1, b: 1, a: 0}
   disableOnComplete: 1
@@ -8635,8 +8635,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1f445fffc25ef694ebce7417a3f4ab96, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gameTutorialUrl: 111
-  imageManagementUrl: 111
 --- !u!114 &2049995598
 MonoBehaviour:
   m_ObjectHideFlags: 0

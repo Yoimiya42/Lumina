@@ -17,6 +17,7 @@ public class ThemeSectionView : MonoBehaviour
     private bool _expanded;
 
     public RectTransform BodyRoot => bodyRoot;
+    public bool IsExpanded => _expanded;
 
     private void Awake()
     {
@@ -27,6 +28,12 @@ public class ThemeSectionView : MonoBehaviour
             bodyFitter = bodyRoot.GetComponent<ThemeBodyHeightFitter>();
 
         SetExpanded(!startCollapsed, force: true);
+    }
+
+    private void OnDestroy()
+    {
+        if (toggleButton != null)
+            toggleButton.onClick.RemoveListener(Toggle);
     }
 
     public void SetTitle(string title)

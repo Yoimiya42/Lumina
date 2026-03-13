@@ -15,6 +15,8 @@ public class ThemeSectionToggle : MonoBehaviour
     [SerializeField] private bool startExpanded = false;
 
     private bool isExpanded;
+    private ThemeSectionView _sectionView;
+    private bool _delegateToSectionView;
 
     private void Reset()
     {
@@ -27,25 +29,82 @@ public class ThemeSectionToggle : MonoBehaviour
         if (headerButton == null) headerButton = GetComponent<Button>();
         if (headerBackground == null) headerBackground = GetComponent<Image>();
 
-        if (headerButton != null)
+        _sectionView = GetComponentInParent<ThemeSectionView>();
+        _delegateToSectionView = _sectionView != null;
+
+        if (!_delegateToSectionView && headerButton != null)
             headerButton.onClick.AddListener(Toggle);
 
-        SetExpanded(startExpanded);
+        if (_delegateToSectionView)
+            SyncFromCurrentState();
+        else
+            SetExpanded(startExpanded);
+    }
+
+
+    private void Start()
+    {
+        if (_delegateToSectionView && _sectionView != null)
+        {
+            _sectionView.SetExpanded(startExpanded, force: true);
+            SyncFromCurrentState();
+        }
+    }
+    private void LateUpdate()
+    {
+        if (_delegateToSectionView)
+            SyncFromCurrentState();
+    }
+
+    private void OnDestroy()
+    {
+        if (!_delegateToSectionView && headerButton != null)
+            headerButton.onClick.RemoveListener(Toggle);
     }
 
     public void Toggle()
     {
+        if (_delegateToSectionView && _sectionView != null)
+        {
+            _sectionView.Toggle();
+            SyncFromCurrentState();
+            return;
+        }
+
         SetExpanded(!isExpanded);
     }
 
     public void SetExpanded(bool expanded)
     {
+        if (_delegateToSectionView && _sectionView != null)
+        {
+            _sectionView.SetExpanded(expanded);
+            SyncFromCurrentState();
+            return;
+        }
+
         isExpanded = expanded;
 
         if (body != null)
             body.SetActive(isExpanded);
 
+        ApplyHeaderVisual();
+    }
+
+    private void SyncFromCurrentState()
+    {
+        if (body != null)
+            isExpanded = body.activeSelf;
+        else if (_sectionView != null && _sectionView.BodyRoot != null)
+            isExpanded = _sectionView.BodyRoot.gameObject.activeSelf;
+
+        ApplyHeaderVisual();
+    }
+
+    private void ApplyHeaderVisual()
+    {
         if (headerBackground != null)
             headerBackground.color = isExpanded ? expandedColor : collapsedColor;
     }
 }
+

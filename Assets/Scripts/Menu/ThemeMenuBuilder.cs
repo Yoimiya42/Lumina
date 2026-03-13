@@ -33,6 +33,7 @@ public class ThemeMenuBuilder : MonoBehaviour
     }
 
     private ThumbnailItemView _selectedItem;
+    private bool _scannerListenerBound;
 
     private void Awake()
     {
@@ -51,9 +52,34 @@ public class ThemeMenuBuilder : MonoBehaviour
             return;
         }
 
-        scanner.OnScanCompleted.AddListener(OnScanCompleted);
+        BindScannerListener();
         scanner.Scan();
+    }
 
+    private void OnDestroy()
+    {
+        if (resetButton != null)
+            resetButton.onClick.RemoveListener(ResetSelected);
+
+        UnbindScannerListener();
+    }
+
+    private void BindScannerListener()
+    {
+        if (scanner == null || _scannerListenerBound)
+            return;
+
+        scanner.OnScanCompleted.AddListener(OnScanCompleted);
+        _scannerListenerBound = true;
+    }
+
+    private void UnbindScannerListener()
+    {
+        if (scanner == null || !_scannerListenerBound)
+            return;
+
+        scanner.OnScanCompleted.RemoveListener(OnScanCompleted);
+        _scannerListenerBound = false;
     }
 
     private void OnScanCompleted(List<ImageFolderScanner.ImageItem> items)
@@ -63,6 +89,15 @@ public class ThemeMenuBuilder : MonoBehaviour
 
     public void Build(IReadOnlyList<ImageFolderScanner.ImageItem> items)
     {
+        if (contentRoot == null || sectionPrefab == null || thumbnailPrefab == null)
+        {
+            Debug.LogError("[ThemeMenuBuilder] Missing contentRoot/sectionPrefab/thumbnailPrefab reference.");
+            return;
+        }
+
+        if (items == null)
+            items = System.Array.Empty<ImageFolderScanner.ImageItem>();
+
         for (int i = contentRoot.childCount - 1; i >= 0; i--)
             Destroy(contentRoot.GetChild(i).gameObject);
 
