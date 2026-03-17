@@ -1,0 +1,13 @@
+{
+    "name": "Tests",
+    "references": [
+        "Lumina.Runtime",
+        "Unity.TextMeshPro"
+    ],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ]
+}
