@@ -95,7 +95,7 @@ public class GameEntryController : MonoBehaviour
 
             if (!tex.LoadImage(bytes, markNonReadable: false))
             {
-                UnityEngine.Object.Destroy(tex);
+                DestroySafely(tex);
                 return null;
             }
 
@@ -111,5 +111,15 @@ public class GameEntryController : MonoBehaviour
             Debug.LogWarning($"[GameEntryController] LoadSpriteFromFile failed: {filePath}\n{e}");
             return null;
         }
+    }
+
+    private static void DestroySafely(UnityEngine.Object obj)
+    {
+        if (obj == null) return;
+
+        if (Application.isPlaying)
+            UnityEngine.Object.Destroy(obj);
+        else
+            UnityEngine.Object.DestroyImmediate(obj);
     }
 }

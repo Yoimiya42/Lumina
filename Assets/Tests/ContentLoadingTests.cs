@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 public class ContentLoadingTests
 {
@@ -113,6 +115,40 @@ public class ContentLoadingTests
 
         Assert.That(Directory.Exists(ContentPaths.GetUserContentRoot(settings)), Is.True);
         Assert.That(Directory.Exists(ContentPaths.GetMyGameContentRoot(settings)), Is.True);
+        Assert.That(Directory.Exists(ContentPaths.GetImagesFolder(settings)), Is.True);
+        Assert.That(Directory.Exists(ContentPaths.GetThumbnailsFolder(settings)), Is.True);
+        Assert.That(Directory.Exists(ContentPaths.GetSavesFolder(settings)), Is.True);
+    }
+
+    [Test]
+    public void ContentBootstrap_Awake_WithMissingPathSettings_DisablesComponentAndLogsError()
+    {
+        var bootstrapObject = new GameObject("ContentBootstrap", typeof(ContentBootstrap));
+        var bootstrap = bootstrapObject.GetComponent<ContentBootstrap>();
+
+        _createdObjects.Add(bootstrapObject);
+
+        LogAssert.Expect(LogType.Error, "ContentBootstrap] Missing LuminaPathSettings reference.");
+        InvokePrivate(bootstrap, "Awake");
+
+        Assert.That(bootstrap.enabled, Is.False);
+    }
+
+    [Test]
+    public void ContentBootstrap_Awake_WithPathSettings_CreatesFolders()
+    {
+        string tempRoot = CreateTempDirectory();
+        var settings = CreatePathSettings();
+        var bootstrapObject = new GameObject("ContentBootstrap", typeof(ContentBootstrap));
+        var bootstrap = bootstrapObject.GetComponent<ContentBootstrap>();
+
+        settings.userContentAbsoluteOverride = Path.Combine(tempRoot, "UserContentRoot");
+
+        _createdObjects.Add(bootstrapObject);
+        SetPrivateField(bootstrap, "pathSettings", settings);
+        InvokePrivate(bootstrap, "Awake");
+
+        Assert.That(bootstrap.enabled, Is.True);
         Assert.That(Directory.Exists(ContentPaths.GetImagesFolder(settings)), Is.True);
         Assert.That(Directory.Exists(ContentPaths.GetThumbnailsFolder(settings)), Is.True);
         Assert.That(Directory.Exists(ContentPaths.GetSavesFolder(settings)), Is.True);
@@ -235,6 +271,82 @@ public class ContentLoadingTests
         Assert.That(scanner.Items[0].fileName, Is.EqualTo("fern"));
     }
 
+    [Test]
+    public void SeedImagesBootstrapper_Awake_SeedsImagesWhenDestinationIsEmpty()
+    {
+        string tempRoot = CreateTempDirectory();
+        string seedFolderName = $"SeedImages_{Guid.NewGuid():N}";
+        string seedRoot = CreateStreamingAssetsSeedFolder(seedFolderName);
+        string themeRoot = Directory.CreateDirectory(Path.Combine(seedRoot, "Animals")).FullName;
+        var settings = CreatePathSettings();
+        var bootstrapObject = new GameObject("SeedImagesBootstrapper", typeof(SeedImagesBootstrapper));
+        var bootstrap = bootstrapObject.GetComponent<SeedImagesBootstrapper>();
+
+        settings.userContentAbsoluteOverride = Path.Combine(tempRoot, "UserContentRoot");
+        WriteSolidPng(Path.Combine(seedRoot, "root.png"), Color.green);
+        WriteSolidPng(Path.Combine(themeRoot, "cat.png"), Color.cyan);
+
+        _createdObjects.Add(bootstrapObject);
+        SetPrivateField(bootstrap, "pathSettings", settings);
+        SetPrivateField(bootstrap, "seedFolderName", seedFolderName);
+
+        InvokePrivate(bootstrap, "Awake");
+
+        string dstImages = ContentPaths.GetImagesFolder(settings);
+        Assert.That(File.Exists(Path.Combine(dstImages, "root.png")), Is.True);
+        Assert.That(File.Exists(Path.Combine(dstImages, "Animals", "cat.png")), Is.True);
+    }
+
+    [Test]
+    public void SeedImagesBootstrapper_Awake_SkipsSeedingWhenImagesAlreadyExist()
+    {
+        string tempRoot = CreateTempDirectory();
+        string seedFolderName = $"SeedImages_{Guid.NewGuid():N}";
+        string seedRoot = CreateStreamingAssetsSeedFolder(seedFolderName);
+        var settings = CreatePathSettings();
+        var bootstrapObject = new GameObject("SeedImagesBootstrapper", typeof(SeedImagesBootstrapper));
+        var bootstrap = bootstrapObject.GetComponent<SeedImagesBootstrapper>();
+
+        settings.userContentAbsoluteOverride = Path.Combine(tempRoot, "UserContentRoot");
+        ContentPaths.EnsureFolders(settings);
+
+        string dstImages = ContentPaths.GetImagesFolder(settings);
+        WriteSolidPng(Path.Combine(dstImages, "existing.png"), Color.yellow);
+        WriteSolidPng(Path.Combine(seedRoot, "new-seed.png"), Color.magenta);
+
+        _createdObjects.Add(bootstrapObject);
+        SetPrivateField(bootstrap, "pathSettings", settings);
+        SetPrivateField(bootstrap, "seedFolderName", seedFolderName);
+
+        InvokePrivate(bootstrap, "Awake");
+
+        Assert.That(File.Exists(Path.Combine(dstImages, "existing.png")), Is.True);
+        Assert.That(File.Exists(Path.Combine(dstImages, "new-seed.png")), Is.False);
+    }
+
+    [Test]
+    public void SeedImagesBootstrapper_Awake_WhenSeedFolderMissing_LogsWarningAndLeavesImagesEmpty()
+    {
+        string tempRoot = CreateTempDirectory();
+        string seedFolderName = $"MissingSeed_{Guid.NewGuid():N}";
+        var settings = CreatePathSettings();
+        var bootstrapObject = new GameObject("SeedImagesBootstrapper", typeof(SeedImagesBootstrapper));
+        var bootstrap = bootstrapObject.GetComponent<SeedImagesBootstrapper>();
+
+        settings.userContentAbsoluteOverride = Path.Combine(tempRoot, "UserContentRoot");
+
+        _createdObjects.Add(bootstrapObject);
+        SetPrivateField(bootstrap, "pathSettings", settings);
+        SetPrivateField(bootstrap, "seedFolderName", seedFolderName);
+
+        LogAssert.Expect(LogType.Warning, new Regex(@"\[SeedImagesBootstrapper\] Seed folder not found:"));
+        InvokePrivate(bootstrap, "Awake");
+
+        string dstImages = ContentPaths.GetImagesFolder(settings);
+        Assert.That(Directory.Exists(dstImages), Is.True);
+        Assert.That(Directory.GetFiles(dstImages, "*.*", SearchOption.AllDirectories), Is.Empty);
+    }
+
     private ImageFolderScanner CreateScanner(string imagesRoot, bool includeSubfolders)
     {
         var scannerObject = new GameObject("ImageFolderScanner", typeof(ImageFolderScanner));
@@ -273,6 +385,14 @@ public class ContentLoadingTests
         return path;
     }
 
+    private string CreateStreamingAssetsSeedFolder(string seedFolderName)
+    {
+        string path = Path.Combine(Application.streamingAssetsPath, seedFolderName);
+        Directory.CreateDirectory(path);
+        _createdDirectories.Add(path);
+        return path;
+    }
+
     private string CreateTempFilePath(string extension)
     {
         string directory = CreateTempDirectory();
@@ -303,6 +423,13 @@ public class ContentLoadingTests
         SetStaticField(typeof(ImageProgressRepository), "_filePath", filePath);
         SetStaticField(typeof(ImageProgressRepository), "_db", null);
         SetStaticField(typeof(ImageProgressRepository), "_map", null);
+    }
+
+    private static object InvokePrivate(object target, string methodName, params object[] args)
+    {
+        var method = target.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.That(method, Is.Not.Null, $"Method '{methodName}' was not found on {target.GetType().Name}.");
+        return method.Invoke(target, args);
     }
 
     private static void SetPrivateField(object target, string fieldName, object value)

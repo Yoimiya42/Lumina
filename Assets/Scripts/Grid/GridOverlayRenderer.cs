@@ -68,13 +68,13 @@ public class GridOverlayRenderer : MonoBehaviour
     {
         if (!EnsureInitialized()) return;
 
-        // Destroy old safely
+        // Edit Mode tests rebuild UI objects outside play mode.
         if (borders != null)
         {
             for (int y = 0; y < borders.GetLength(1); y++)
                 for (int x = 0; x < borders.GetLength(0); x++)
                     if (borders[x, y] != null)
-                        Destroy(borders[x, y].gameObject);
+                        DestroySafely(borders[x, y].gameObject);
         }
 
         borders = null;
@@ -180,6 +180,16 @@ public class GridOverlayRenderer : MonoBehaviour
     }
 
     private bool InRange(int x, int y) => x >= 0 && x < gridX && y >= 0 && y < gridY;
+
+    private static void DestroySafely(UnityEngine.Object obj)
+    {
+        if (obj == null) return;
+
+        if (Application.isPlaying)
+            Destroy(obj);
+        else
+            DestroyImmediate(obj);
+    }
 
     private class CellBorder : MonoBehaviour
     {
