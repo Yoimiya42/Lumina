@@ -28,7 +28,7 @@ public class ImageFolderScanner : MonoBehaviour
     [SerializeField] private List<ImageItem> items = new List<ImageItem>();
 
     [Header("Events")]
-    public UnityEvent<List<ImageItem>> OnScanCompleted;
+    public UnityEvent<List<ImageItem>> OnScanCompleted = new();
 
     [Serializable]
     public class ImageItem
@@ -45,6 +45,8 @@ public class ImageFolderScanner : MonoBehaviour
 
     private void Awake()
     {
+        OnScanCompleted ??= new UnityEvent<List<ImageItem>>();
+
         if (pathSettings == null)
         {
             Debug.LogError("[ImageFolderScanner] Missing PathSettings reference.");

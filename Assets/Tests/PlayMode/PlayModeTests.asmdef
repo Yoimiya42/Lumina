@@ -1,0 +1,10 @@
+{
+    "name": "PlayModeTests",
+    "references": [
+        "Lumina.Runtime",
+        "Unity.TextMeshPro"
+    ],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

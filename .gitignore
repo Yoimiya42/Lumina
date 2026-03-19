@@ -18,3 +18,7 @@
 *.meta
 
 UserContent/
+CodeCoverage/
+tmp/
+Temp/
+*.log
