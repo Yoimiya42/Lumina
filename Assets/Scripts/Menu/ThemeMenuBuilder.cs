@@ -41,15 +41,18 @@ public class ThemeMenuBuilder : MonoBehaviour
     private bool _scannerListenerBound;
     private TMP_Text _showColorButtonLabel;
     private bool _thumbnailsShownInColor;
+    private bool _hasBuiltThumbnails;
 
     private void Awake()
     {
         if (startButton != null) startButton.interactable = false;
+        if (difficultyDropdown != null) difficultyDropdown.interactable = false;
         if (resetButton != null) resetButton.interactable = false;
 
         if (showColorButton != null)
         {
             _showColorButtonLabel = showColorButton.GetComponentInChildren<TMP_Text>(true);
+            showColorButton.interactable = false;
             showColorButton.onClick.AddListener(ToggleThumbnailColorMode);
         }
 
@@ -115,9 +118,10 @@ public class ThemeMenuBuilder : MonoBehaviour
 
         if (items == null)
             items = System.Array.Empty<ImageFolderScanner.ImageItem>();
+        else
+            items = items.Where(x => x != null).ToArray();
 
-        for (int i = contentRoot.childCount - 1; i >= 0; i--)
-            Destroy(contentRoot.GetChild(i).gameObject);
+        ClearBuiltSections();
 
         _selectedItem = null;
         SelectedImagePath = null;
@@ -146,6 +150,8 @@ public class ThemeMenuBuilder : MonoBehaviour
 
             body.GetComponent<ThemeBodyHeightFitter>()?.Refit();
         }
+
+        UpdateShowColorButtonState(contentRoot.childCount > 0);
 
         Canvas.ForceUpdateCanvases();
         LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
@@ -219,9 +225,21 @@ public class ThemeMenuBuilder : MonoBehaviour
 
     public void ToggleThumbnailColorMode()
     {
+        if (!_hasBuiltThumbnails)
+        {
+            UpdateShowColorButtonLabel();
+            return;
+        }
+
         _thumbnailsShownInColor = !_thumbnailsShownInColor;
         ApplyThumbnailColorMode();
         UpdateShowColorButtonLabel();
+    }
+
+    private void ClearBuiltSections()
+    {
+        for (int i = contentRoot.childCount - 1; i >= 0; i--)
+            DestroySafely(contentRoot.GetChild(i).gameObject);
     }
 
     private void ApplyThumbnailColorMode()
@@ -239,9 +257,30 @@ public class ThemeMenuBuilder : MonoBehaviour
         Canvas.ForceUpdateCanvases();
     }
 
+    private void UpdateShowColorButtonState(bool hasThumbnails)
+    {
+        _hasBuiltThumbnails = hasThumbnails;
+
+        if (showColorButton != null)
+            showColorButton.interactable = hasThumbnails;
+
+        UpdateShowColorButtonLabel();
+    }
+
     private void UpdateShowColorButtonLabel()
     {
         if (_showColorButtonLabel != null)
             _showColorButtonLabel.text = _thumbnailsShownInColor ? "Show Gray" : "Show Color";
+    }
+
+    private static void DestroySafely(Object obj)
+    {
+        if (obj == null)
+            return;
+
+        if (Application.isPlaying)
+            Destroy(obj);
+        else
+            DestroyImmediate(obj);
     }
 }

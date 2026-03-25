@@ -208,6 +208,42 @@ public class MenuTests
         Assert.That(harness.StartButton.interactable, Is.False);
         Assert.That(harness.DifficultyDropdown.interactable, Is.False);
         Assert.That(harness.ResetButton.interactable, Is.False);
+        Assert.That(harness.ShowColorButton.interactable, Is.True);
+    }
+
+    [Test]
+    public void ThemeMenuBuilder_Awake_DisablesControlsBeforeAnyBuild()
+    {
+        var harness = CreateBuilderHarness();
+
+        Assert.That(harness.StartButton.interactable, Is.False);
+        Assert.That(harness.DifficultyDropdown.interactable, Is.False);
+        Assert.That(harness.ResetButton.interactable, Is.False);
+        Assert.That(harness.ShowColorButton.interactable, Is.False);
+    }
+
+    [Test]
+    public void ThemeMenuBuilder_Build_WithNoItems_DisablesShowColorButton()
+    {
+        var harness = CreateBuilderHarness();
+        var label = harness.ShowColorButton.GetComponentInChildren<TextMeshProUGUI>(true);
+
+        harness.Builder.Build(Array.Empty<ImageFolderScanner.ImageItem>());
+
+        Assert.That(harness.ContentRoot.childCount, Is.EqualTo(0));
+        Assert.That(harness.ShowColorButton.interactable, Is.False);
+        Assert.That(harness.Builder.AreThumbnailsShownInColor, Is.False);
+        Assert.That(label.text, Is.EqualTo("Show Color"));
+    }
+
+    [Test]
+    public void ThemeMenuBuilder_ShowColorButton_WithNoThumbnails_DoesNotToggleState()
+    {
+        var harness = CreateBuilderHarness();
+
+        harness.ShowColorButton.onClick.Invoke();
+
+        Assert.That(harness.Builder.AreThumbnailsShownInColor, Is.False);
     }
 
     [Test]
@@ -287,6 +323,27 @@ public class MenuTests
         Assert.That(harness.Builder.AreThumbnailsShownInColor, Is.False);
         Assert.That(thumbImage.sprite, Is.Not.EqualTo(item.sprite));
         Assert.That(label.text, Is.EqualTo("Show Color"));
+    }
+
+    [Test]
+    public void ThemeMenuBuilder_Build_AfterColorToggle_PreservesPreviewModeForNewThumbnails()
+    {
+        var harness = CreateBuilderHarness();
+        var firstItem = CreateItem("Nature", "fern", "fern-path", "image-1", CreateRuntimeSprite(new Color(1f, 0.4f, 0.1f, 1f)));
+        var secondItem = CreateItem("Animals", "fox", "fox-path", "image-2", CreateRuntimeSprite(new Color(0.2f, 0.6f, 1f, 1f)));
+
+        harness.Builder.Build(new[] { firstItem });
+        harness.ShowColorButton.onClick.Invoke();
+        harness.Builder.Build(new[] { secondItem });
+
+        var thumbnail = harness.ContentRoot.GetComponentInChildren<ThumbnailItemView>(true);
+        var thumbImage = GetPrivateField<Image>(thumbnail, "thumbImage");
+        var label = harness.ShowColorButton.GetComponentInChildren<TextMeshProUGUI>(true);
+
+        Assert.That(harness.Builder.AreThumbnailsShownInColor, Is.True);
+        Assert.That(harness.ShowColorButton.interactable, Is.True);
+        Assert.That(thumbImage.sprite, Is.EqualTo(secondItem.sprite));
+        Assert.That(label.text, Is.EqualTo("Show Gray"));
     }
 
     private BuilderHarness CreateBuilderHarness()

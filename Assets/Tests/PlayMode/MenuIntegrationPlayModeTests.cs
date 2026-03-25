@@ -43,6 +43,20 @@ public class MenuIntegrationPlayModeTests : PlayModeIntegrationTestBase
         Assert.That(harness.StartButton.interactable, Is.False);
         Assert.That(harness.DifficultyDropdown.interactable, Is.False);
         Assert.That(harness.ResetButton.interactable, Is.False);
+        Assert.That(harness.ShowColorButton.interactable, Is.True);
+    }
+
+    [UnityTest]
+    public IEnumerator ScannerAndMenuBuilder_Start_WithNoImages_DisablesShowColorButton()
+    {
+        string imagesRoot = CreateTempDirectory();
+        var harness = CreateHarness(imagesRoot, Difficulty.Medium);
+
+        yield return ActivateHarness(harness);
+
+        Assert.That(harness.ContentRoot.childCount, Is.EqualTo(0));
+        Assert.That(harness.ShowColorButton.interactable, Is.False);
+        Assert.That(harness.Builder.AreThumbnailsShownInColor, Is.False);
     }
 
     [UnityTest]
