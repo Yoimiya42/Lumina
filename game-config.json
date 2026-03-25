@@ -5,14 +5,14 @@
   "exePath": "games/Lumina/Lumina.exe",
   "thumbnail": "../../games/Lumina/assets/icons/favicon.ico",
   "largeThumbnail": "../../games/Lumina/assets/icons/16_9_thumbnail.png",
-  "helpPath": "../../games/Lumina/help/help.md",
-  "demoVideoPath": "../../games/Lumina/help/demo.mp4",
+  "helpPath": "../../games/Lumina/help-content/help.md",
+  "demoVideoPath": "../../games/Lumina/help-content/demo.mp4",
   "functions": {
     "hasGenAI": false,
     "supportedInputMethods": [ "mouse+keyboard", "motionInput" ]
   },
   "requirements": {
-    "motionInputMethod": "point-click",
+    "motionInputMethod": "grab-and-move",
     "requiresBreathingInput": true
   }
 }
