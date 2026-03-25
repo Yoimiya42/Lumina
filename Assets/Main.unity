@@ -3216,7 +3216,6 @@ RectTransform:
   - {fileID: 1496895660}
   - {fileID: 1809458947}
   - {fileID: 1847476583}
-  - {fileID: 2096001001}
   - {fileID: 1240932387}
   m_Father: {fileID: 891640816}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -4357,6 +4356,7 @@ RectTransform:
   - {fileID: 212943712}
   - {fileID: 28458823}
   - {fileID: 715616831}
+  - {fileID: 2096001001}
   m_Father: {fileID: 731130004}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -7477,13 +7477,13 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2096001011}
-  m_Father: {fileID: 715616831}
+  m_Father: {fileID: 891640816}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -220, y: -44.5}
-  m_SizeDelta: {x: 190, y: 70}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: -24, y: -20}
+  m_SizeDelta: {x: 180, y: 56}
+  m_Pivot: {x: 1, y: 0.5}
 --- !u!222 &2096001002
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -7578,11 +7578,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 306cc8c2b49d7114eaa3623786fc2126, type: 3}
   m_Name:
   m_EditorClassIdentifier:
-  m_IgnoreLayout: 0
+  m_IgnoreLayout: 1
   m_MinWidth: -1
   m_MinHeight: -1
-  m_PreferredWidth: 190
-  m_PreferredHeight: 70
+  m_PreferredWidth: 180
+  m_PreferredHeight: 56
   m_FlexibleWidth: -1
   m_FlexibleHeight: -1
   m_LayoutPriority: 1
