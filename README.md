@@ -133,5 +133,7 @@ It is not a medical device and does not replace professional therapy.
 
 ---
 
-
+## Contribution
+Developed by Fangming Luan
+from Team 9 - FunShapes and FunBreathing
 
