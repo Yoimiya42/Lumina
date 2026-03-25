@@ -12,6 +12,7 @@ using UnityEngine.UI;
 public class MenuTests
 {
     private readonly List<GameObject> _createdObjects = new();
+    private readonly List<UnityEngine.Object> _createdUnityObjects = new();
     private string _progressFilePath;
 
     [SetUp]
@@ -24,12 +25,19 @@ public class MenuTests
     [TearDown]
     public void TearDown()
     {
+        for (int i = _createdUnityObjects.Count - 1; i >= 0; i--)
+        {
+            if (_createdUnityObjects[i] != null)
+                UnityEngine.Object.DestroyImmediate(_createdUnityObjects[i]);
+        }
+
         for (int i = _createdObjects.Count - 1; i >= 0; i--)
         {
             if (_createdObjects[i] != null)
                 UnityEngine.Object.DestroyImmediate(_createdObjects[i]);
         }
 
+        _createdUnityObjects.Clear();
         _createdObjects.Clear();
         ResetImageProgressRepository(_progressFilePath);
 
@@ -255,7 +263,7 @@ public class MenuTests
     public void ThemeMenuBuilder_ShowColorButton_TogglesThumbnailMaterial()
     {
         var harness = CreateBuilderHarness();
-        var item = CreateItem("Nature", "fern", "fern-path", "image-1");
+        var item = CreateItem("Nature", "fern", "fern-path", "image-1", CreateRuntimeSprite(new Color(1f, 0.4f, 0.1f, 1f)));
 
         harness.Builder.Build(new[] { item });
 
@@ -264,19 +272,20 @@ public class MenuTests
         var label = harness.ShowColorButton.GetComponentInChildren<TextMeshProUGUI>(true);
 
         Assert.That(harness.Builder.AreThumbnailsShownInColor, Is.False);
-        Assert.That(thumbImage.material, Is.EqualTo(harness.GrayscaleMaterial));
+        Assert.That(thumbImage.material, Is.Null);
+        Assert.That(thumbImage.sprite, Is.Not.EqualTo(item.sprite));
         Assert.That(label.text, Is.EqualTo("Show Color"));
 
         harness.ShowColorButton.onClick.Invoke();
 
         Assert.That(harness.Builder.AreThumbnailsShownInColor, Is.True);
-        Assert.That(thumbImage.material, Is.Null);
+        Assert.That(thumbImage.sprite, Is.EqualTo(item.sprite));
         Assert.That(label.text, Is.EqualTo("Show Gray"));
 
         harness.ShowColorButton.onClick.Invoke();
 
         Assert.That(harness.Builder.AreThumbnailsShownInColor, Is.False);
-        Assert.That(thumbImage.material, Is.EqualTo(harness.GrayscaleMaterial));
+        Assert.That(thumbImage.sprite, Is.Not.EqualTo(item.sprite));
         Assert.That(label.text, Is.EqualTo("Show Color"));
     }
 
@@ -355,7 +364,7 @@ public class MenuTests
         return thumbnail;
     }
 
-    private ImageFolderScanner.ImageItem CreateItem(string theme, string fileName, string filePath, string imageId)
+    private ImageFolderScanner.ImageItem CreateItem(string theme, string fileName, string filePath, string imageId, Sprite sprite = null)
     {
         return new ImageFolderScanner.ImageItem
         {
@@ -363,8 +372,20 @@ public class MenuTests
             fileName = fileName,
             filePath = filePath,
             imageId = imageId,
-            sprite = null
+            sprite = sprite
         };
+    }
+
+    private Sprite CreateRuntimeSprite(Color color)
+    {
+        var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+        texture.SetPixels(new[] { color, color, color, color });
+        texture.Apply();
+
+        var sprite = Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100f);
+        _createdUnityObjects.Add(sprite);
+        _createdUnityObjects.Add(texture);
+        return sprite;
     }
 
     private GameObject CreateBodyRoot(string name, Transform parent = null)

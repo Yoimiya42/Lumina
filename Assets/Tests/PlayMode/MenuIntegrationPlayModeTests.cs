@@ -49,7 +49,7 @@ public class MenuIntegrationPlayModeTests : PlayModeIntegrationTestBase
     public IEnumerator ShowColorButton_TogglesThumbnailPreviewMaterial()
     {
         string imagesRoot = CreateTempDirectory();
-        WriteSolidPng(Path.Combine(imagesRoot, "fern.png"), Color.green);
+        WriteSolidPng(Path.Combine(imagesRoot, "fern.png"), new Color(1f, 0.4f, 0.1f, 1f));
 
         var harness = CreateHarness(imagesRoot, Difficulty.Medium);
 
@@ -57,20 +57,20 @@ public class MenuIntegrationPlayModeTests : PlayModeIntegrationTestBase
 
         var thumbnail = FindThumbnail(harness, "fern");
         var thumbImage = GetPrivateField<UnityEngine.UI.Image>(thumbnail, "thumbImage");
-        var grayscaleMaterial = GetPrivateField<Material>(harness.Builder, "thumbnailGrayscaleMaterial");
+        var grayscaleSprite = thumbImage.sprite;
 
-        Assert.That(thumbImage.material, Is.EqualTo(grayscaleMaterial));
+        Assert.That(grayscaleSprite, Is.Not.Null);
 
         harness.ShowColorButton.onClick.Invoke();
         yield return null;
 
         Assert.That(harness.Builder.AreThumbnailsShownInColor, Is.True);
-        Assert.That(thumbImage.material, Is.Null);
+        Assert.That(thumbImage.sprite, Is.Not.EqualTo(grayscaleSprite));
 
         harness.ShowColorButton.onClick.Invoke();
         yield return null;
 
         Assert.That(harness.Builder.AreThumbnailsShownInColor, Is.False);
-        Assert.That(thumbImage.material, Is.EqualTo(grayscaleMaterial));
+        Assert.That(thumbImage.sprite, Is.EqualTo(grayscaleSprite));
     }
 }

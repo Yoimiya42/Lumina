@@ -13,6 +13,8 @@ public class ThumbnailItemView : MonoBehaviour
     private Outline _outline;
     private Button _button;
     private System.Action<ThumbnailItemView> _onClick;
+    private Sprite _colorSprite;
+    private Sprite _grayscaleSprite;
 
     public string ImagePath { get; private set; } // load raw picture
     public string ImageId { get; private set; }   // key（sha1 bytes）
@@ -34,6 +36,8 @@ public class ThumbnailItemView : MonoBehaviour
     {
         if (_button != null)
             _button.onClick.RemoveListener(HandleClicked);
+
+        ReleaseGeneratedPreview();
     }
 
     public void Bind(Sprite sprite, string imagePath, string imageId, System.Action<ThumbnailItemView> onClick)
@@ -41,6 +45,10 @@ public class ThumbnailItemView : MonoBehaviour
         ImagePath = imagePath;
         ImageId = imageId;
         _onClick = onClick;
+        _colorSprite = sprite;
+
+        ReleaseGeneratedPreview();
+        _grayscaleSprite = CreateGrayscaleSprite(sprite);
 
         if (thumbImage != null)
         {
@@ -57,11 +65,15 @@ public class ThumbnailItemView : MonoBehaviour
         if (thumbImage == null)
             return;
 
-        thumbImage.material = showColor || grayscaleMaterial == null
-            ? null
-            : grayscaleMaterial;
+        thumbImage.material = null;
+        thumbImage.sprite = showColor
+            ? _colorSprite
+            : (_grayscaleSprite != null ? _grayscaleSprite : _colorSprite);
+        thumbImage.preserveAspect = true;
+        thumbImage.enabled = (thumbImage.sprite != null);
 
         thumbImage.SetMaterialDirty();
+        thumbImage.SetVerticesDirty();
     }
 
     public void SetSelected(bool selected)
@@ -116,5 +128,65 @@ public class ThumbnailItemView : MonoBehaviour
     {
         if (trophyIcon != null)
             trophyIcon.gameObject.SetActive(visible);
+    }
+
+    private void ReleaseGeneratedPreview()
+    {
+        if (_grayscaleSprite == null)
+            return;
+
+        var tex = _grayscaleSprite.texture;
+        DestroySafely(_grayscaleSprite);
+
+        if (tex != null)
+            DestroySafely(tex);
+
+        _grayscaleSprite = null;
+    }
+
+    private static Sprite CreateGrayscaleSprite(Sprite source)
+    {
+        if (source == null || source.texture == null)
+            return null;
+
+        var rect = source.rect;
+        int width = Mathf.RoundToInt(rect.width);
+        int height = Mathf.RoundToInt(rect.height);
+        if (width <= 0 || height <= 0)
+            return null;
+
+        var pixels = source.texture.GetPixels(
+            Mathf.RoundToInt(rect.x),
+            Mathf.RoundToInt(rect.y),
+            width,
+            height);
+
+        for (int i = 0; i < pixels.Length; i++)
+        {
+            var color = pixels[i];
+            float gray = color.r * 0.299f + color.g * 0.587f + color.b * 0.114f;
+            pixels[i] = new Color(gray, gray, gray, color.a);
+        }
+
+        var texture = new Texture2D(width, height, TextureFormat.RGBA32, false, false)
+        {
+            name = source.texture.name + "_GrayscalePreview"
+        };
+        texture.SetPixels(pixels);
+        texture.Apply(updateMipmaps: false, makeNoLongerReadable: false);
+
+        var pivot = new Vector2(source.pivot.x / rect.width, source.pivot.y / rect.height);
+        return Sprite.Create(texture, new Rect(0f, 0f, width, height), pivot, source.pixelsPerUnit);
+    }
+
+    private static void DestroySafely(Object obj)
+    {
+        if (obj == null)
+            return;
+
+        if (Application.isPlaying)
+            Destroy(obj);
+        else
+            DestroyImmediate(obj);
     }
 }
