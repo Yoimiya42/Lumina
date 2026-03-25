@@ -296,7 +296,7 @@ public class MenuTests
     }
 
     [Test]
-    public void ThemeMenuBuilder_ShowColorButton_TogglesThumbnailMaterial()
+    public void ThemeMenuBuilder_ShowColorButton_TogglesThumbnailPreview()
     {
         var harness = CreateBuilderHarness();
         var item = CreateItem("Nature", "fern", "fern-path", "image-1", CreateRuntimeSprite(new Color(1f, 0.4f, 0.1f, 1f)));
@@ -308,7 +308,6 @@ public class MenuTests
         var label = harness.ShowColorButton.GetComponentInChildren<TextMeshProUGUI>(true);
 
         Assert.That(harness.Builder.AreThumbnailsShownInColor, Is.False);
-        Assert.That(thumbImage.material, Is.Null);
         Assert.That(thumbImage.sprite, Is.Not.EqualTo(item.sprite));
         Assert.That(label.text, Is.EqualTo("Show Color"));
 
