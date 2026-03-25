@@ -166,6 +166,10 @@ public class BrushTests
         SetPrivateField(breath, "minMultiplier", 1f);
         SetPrivateField(breath, "maxMultiplier", 3f);
         SetPrivateField(breath, "gamma", 1f);
+        SetPrivateField(breath, "rawVolumeSensitivity", 1f);
+        SetPrivateField(breath, "rawSignalBlend", 1f);
+        SetPrivateField(breath, "breathHoldSec", 0f);
+        SetPrivateField(breath, "activeSignalFloor01", 0f);
         SetPrivateField(breath, "useRegularity", true);
         SetPrivateField(breath, "regularityWeight", 0.5f);
         SetPrivateField(breath, "useRateBonus", true);
@@ -202,12 +206,15 @@ public class BrushTests
         SetPrivateField(breath, "minMultiplier", 1f);
         SetPrivateField(breath, "maxMultiplier", 2f);
         SetPrivateField(breath, "gamma", 1f);
+        SetPrivateField(breath, "rawVolumeSensitivity", 1f);
+        SetPrivateField(breath, "rawSignalBlend", 1f);
+        SetPrivateField(breath, "breathHoldSec", 0f);
+        SetPrivateField(breath, "activeSignalFloor01", 0f);
         SetPrivateField(breath, "useRegularity", false);
         SetPrivateField(breath, "useRateBonus", false);
         SetPrivateField(breath, "calibLerp", 0f);
         SetPrivateField(breath, "_vMin", 0f);
         SetPrivateField(breath, "_vMax", 1f);
-        SetPrivateField(breath, "_paintGateState", true);
 
         float multiplier = (float)InvokePrivate(
             breath,
@@ -218,6 +225,49 @@ public class BrushTests
 
         Assert.That(multiplier, Is.EqualTo(1.05f).Within(0.0001f));
         Assert.That((bool)GetPrivateField(painter, "breathPaintActive"), Is.False);
+    }
+
+    [Test]
+    public void Breath_ComputeMultiplierAndGate_HoldsBreathStateBrieflyAcrossSmallDips()
+    {
+        var painterObject = CreateObject("Painter", typeof(Painter));
+        var breathObject = CreateObject("Breath", typeof(Breath));
+        var painter = painterObject.GetComponent<Painter>();
+        var breath = breathObject.GetComponent<Breath>();
+
+        SetPrivateField(breath, "painter", painter);
+        SetPrivateField(breath, "gatePainting", true);
+        SetPrivateField(breath, "breathOnThreshold01", 0.2f);
+        SetPrivateField(breath, "breathOffThreshold01", 0.1f);
+        SetPrivateField(breath, "minMultiplier", 1f);
+        SetPrivateField(breath, "maxMultiplier", 2f);
+        SetPrivateField(breath, "gamma", 1f);
+        SetPrivateField(breath, "rawVolumeSensitivity", 20f);
+        SetPrivateField(breath, "rawSignalBlend", 1f);
+        SetPrivateField(breath, "breathHoldSec", 0.5f);
+        SetPrivateField(breath, "activeSignalFloor01", 0f);
+        SetPrivateField(breath, "useRegularity", false);
+        SetPrivateField(breath, "useRateBonus", false);
+        SetPrivateField(breath, "calibLerp", 0f);
+        SetPrivateField(breath, "_vMin", 0f);
+        SetPrivateField(breath, "_vMax", 1f);
+
+        InvokePrivate(
+            breath,
+            "ComputeMultiplierAndGate",
+            0.02f,
+            1f,
+            0f);
+
+        float multiplier = (float)InvokePrivate(
+            breath,
+            "ComputeMultiplierAndGate",
+            0.008f,
+            1f,
+            0f);
+
+        Assert.That(multiplier, Is.EqualTo(1.16f).Within(0.0001f));
+        Assert.That((bool)GetPrivateField(painter, "breathPaintActive"), Is.True);
     }
 
     private GameObject CreateObject(string name, params Type[] componentTypes)

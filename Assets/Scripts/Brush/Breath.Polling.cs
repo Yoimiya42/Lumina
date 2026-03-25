@@ -9,32 +9,31 @@ public partial class Breath
     {
         while (enabled)
         {
+            float reg = _lastRegularity;
+            float rateBps = _lastRateBps;
             float? vol = null;
             yield return GetFloat(UrlBreathingVolume, "breathing_volume", v => vol = v);
-
-            float reg = _lastRegularity;
-            if (useRegularity)
-            {
-                float? r = null;
-                yield return GetFloat(UrlBreathingRegularity, "breathing_regularity", v => r = v);
-                if (r.HasValue) reg = Mathf.Clamp01(r.Value);
-            }
-
-            float rateBps = _lastRateBps;
-            if (useRateBonus)
-            {
-                float? rr = null;
-                yield return GetFloat(UrlBreathingRate, "breathing_rate", v => rr = v);
-                if (rr.HasValue) rateBps = Mathf.Max(0f, rr.Value);
-            }
 
             if (vol.HasValue)
             {
                 float v = Mathf.Max(0f, vol.Value);
-                _lastRegularity = reg;
-                _lastRateBps = rateBps;
-
                 _targetMultiplier = ComputeMultiplierAndGate(v, reg, rateBps);
+            }
+
+            if (useRegularity)
+            {
+                float? r = null;
+                yield return GetFloat(UrlBreathingRegularity, "breathing_regularity", v => r = v);
+                if (r.HasValue)
+                    _lastRegularity = Mathf.Clamp01(r.Value);
+            }
+
+            if (useRateBonus)
+            {
+                float? rr = null;
+                yield return GetFloat(UrlBreathingRate, "breathing_rate", v => rr = v);
+                if (rr.HasValue)
+                    _lastRateBps = Mathf.Max(0f, rr.Value);
             }
 
             yield return _pollWait;

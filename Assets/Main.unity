@@ -3159,7 +3159,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   painter: {fileID: 710754583}
   apiBaseUrl: http://127.0.0.1:8000
-  pollIntervalSec: 0.1
+  pollIntervalSec: 0.05
   requestTimeoutSec: 2
   baseSecondsPerCell: 1.5
   minMultiplier: 0.2
@@ -3172,9 +3172,9 @@ MonoBehaviour:
   targetBpmMax: 10
   bpmBonus: 0.2
   gatePainting: 1
-  breathOnThreshold01: 0.03
-  breathOffThreshold01: 0.05
-  smoothTauSec: 0.25
+  breathOnThreshold01: 0.01
+  breathOffThreshold01: 0.005
+  smoothTauSec: 0.12
   calibLerp: 0.02
   initialVMin: 0
   initialVMax: 0.05

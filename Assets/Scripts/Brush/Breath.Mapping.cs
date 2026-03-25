@@ -9,13 +9,25 @@ public partial class Breath
         _vMax = Mathf.Lerp(_vMax, Mathf.Max(_vMax, breathingVolume), calibLerp);
         if (_vMax <= _vMin + 1e-4f) _vMax = _vMin + 1e-4f;
 
-        float v01 = Mathf.Clamp01((breathingVolume - _vMin) / (_vMax - _vMin));
-        _lastV01 = v01;
+        float normalizedV01 = Mathf.Clamp01((breathingVolume - _vMin) / (_vMax - _vMin));
+        float boostedV01 = Mathf.Clamp01(Mathf.Max(0f, breathingVolume) * Mathf.Max(0f, rawVolumeSensitivity));
+        _responsiveSignal01 = Mathf.Lerp(_responsiveSignal01, boostedV01, Mathf.Clamp01(rawSignalBlend));
+        float controlV01 = Mathf.Max(normalizedV01, _responsiveSignal01);
+        _lastV01 = controlV01;
 
         if (gatePainting)
         {
-            if (!_paintGateState && v01 >= breathOnThreshold01) _paintGateState = true;
-            else if (_paintGateState && v01 <= breathOffThreshold01) _paintGateState = false;
+            if (controlV01 >= breathOnThreshold01)
+            {
+                _paintGateState = true;
+                _lastBreathSeenTime = Time.unscaledTime;
+            }
+            else
+            {
+                bool holdActive = Time.unscaledTime - _lastBreathSeenTime < Mathf.Max(0f, breathHoldSec);
+                if (_paintGateState && controlV01 <= breathOffThreshold01 && !holdActive)
+                    _paintGateState = false;
+            }
 
             painter.SetBreathPaintActive(_paintGateState);
         }
@@ -24,7 +36,11 @@ public partial class Breath
             painter.SetBreathPaintActive(true);
         }
 
-        float m = minMultiplier + (maxMultiplier - minMultiplier) * Mathf.Pow(v01, gamma);
+        float mappedV01 = _paintGateState
+            ? Mathf.Max(controlV01, Mathf.Clamp01(activeSignalFloor01))
+            : controlV01;
+
+        float m = minMultiplier + (maxMultiplier - minMultiplier) * Mathf.Pow(mappedV01, gamma);
 
         if (useRegularity)
         {

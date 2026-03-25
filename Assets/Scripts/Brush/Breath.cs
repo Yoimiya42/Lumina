@@ -20,6 +20,18 @@ public partial class Breath : MonoBehaviour
     [SerializeField] private float pollIntervalSec = 0.10f;
     [SerializeField] private int requestTimeoutSec = 2;
 
+    [Header("Responsive Detection")]
+    [Tooltip("Boost raw breathing_volume before gating so quieter breaths still register.")]
+    [SerializeField] private float rawVolumeSensitivity = 20f;
+    [Tooltip("How quickly the responsive signal follows new samples. Higher = snappier.")]
+    [Range(0.01f, 1f)]
+    [SerializeField] private float rawSignalBlend = 0.18f;
+    [Tooltip("Keeps breathing active briefly when polling leaves tiny gaps between updates.")]
+    [SerializeField] private float breathHoldSec = 0.5f;
+    [Tooltip("Minimum control signal while breathing is active, similar to the web prototype's floor.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float activeSignalFloor01 = 0.25f;
+
     [Header("Base Speed")]
     [Tooltip("Your preferred baseline seconds-per-cell (multiplier=1).")]
     [SerializeField] private float baseSecondsPerCell = 1.5f;
@@ -74,6 +86,8 @@ public partial class Breath : MonoBehaviour
 
     private float _lastRegularity = 1f;
     private float _lastRateBps = 0f;
+    private float _responsiveSignal01 = 0f;
+    private float _lastBreathSeenTime = float.NegativeInfinity;
 
     private bool _paintGateState = false;
     private float _lastV01 = 0f; // debug
@@ -94,7 +108,7 @@ public partial class Breath : MonoBehaviour
         }
 
         if (breathOffThreshold01 >= breathOnThreshold01)
-            breathOffThreshold01 = Mathf.Max(0f, breathOnThreshold01 - 0.05f);
+            breathOffThreshold01 = Mathf.Clamp01(breathOnThreshold01 * 0.5f);
 
         _vMin = initialVMin;
         _vMax = Mathf.Max(initialVMax, initialVMin + 1e-4f);
