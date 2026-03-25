@@ -14,5 +14,9 @@
   "requirements": {
     "motionInputMethod": "grab-and-move",
     "requiresBreathingInput": true
+  },
+  "default-per-game-settings": {
+    "enableBreathingInput": true,
+    "enableBreathingGraph": false
   }
 }

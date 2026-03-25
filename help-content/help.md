@@ -2,6 +2,7 @@
 *Breath-Driven Oil Painting-Style Coloring Game*
 
 ---
+
 ### Objective
 - Use your breath to gradually restore color to a gray painting until the entire artwork is complete.
 - Complete as many paintings as possible to win trophies!
