@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using TMPro;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -250,6 +251,35 @@ public class MenuTests
         Assert.That(harness.ResetButton.interactable, Is.False);
     }
 
+    [Test]
+    public void ThemeMenuBuilder_ShowColorButton_TogglesThumbnailMaterial()
+    {
+        var harness = CreateBuilderHarness();
+        var item = CreateItem("Nature", "fern", "fern-path", "image-1");
+
+        harness.Builder.Build(new[] { item });
+
+        var thumbnail = harness.ContentRoot.GetComponentInChildren<ThumbnailItemView>(true);
+        var thumbImage = GetPrivateField<Image>(thumbnail, "thumbImage");
+        var label = harness.ShowColorButton.GetComponentInChildren<TextMeshProUGUI>(true);
+
+        Assert.That(harness.Builder.AreThumbnailsShownInColor, Is.False);
+        Assert.That(thumbImage.material, Is.EqualTo(harness.GrayscaleMaterial));
+        Assert.That(label.text, Is.EqualTo("Show Color"));
+
+        harness.ShowColorButton.onClick.Invoke();
+
+        Assert.That(harness.Builder.AreThumbnailsShownInColor, Is.True);
+        Assert.That(thumbImage.material, Is.Null);
+        Assert.That(label.text, Is.EqualTo("Show Gray"));
+
+        harness.ShowColorButton.onClick.Invoke();
+
+        Assert.That(harness.Builder.AreThumbnailsShownInColor, Is.False);
+        Assert.That(thumbImage.material, Is.EqualTo(harness.GrayscaleMaterial));
+        Assert.That(label.text, Is.EqualTo("Show Color"));
+    }
+
     private BuilderHarness CreateBuilderHarness()
     {
         var canvasObject = CreateUiObject("CanvasRoot", null, typeof(Canvas));
@@ -257,7 +287,9 @@ public class MenuTests
         var dropdownObject = CreateUiObject("DifficultyDropdown", canvasObject.transform, typeof(TMP_Dropdown));
         var startButtonObject = CreateUiObject("StartButton", canvasObject.transform, typeof(Button));
         var resetButtonObject = CreateUiObject("ResetButton", canvasObject.transform, typeof(Button));
+        var showColorButtonObject = CreateUiObject("ShowColorButton", canvasObject.transform, typeof(Button));
         var builderObject = CreateUiObject("Builder", canvasObject.transform, typeof(ThemeMenuBuilder));
+        var showColorLabelObject = CreateUiObject("Text", showColorButtonObject.transform, typeof(TextMeshProUGUI));
 
         var dropdown = dropdownObject.GetComponent<TMP_Dropdown>();
         dropdown.options = new List<TMP_Dropdown.OptionData>
@@ -268,6 +300,10 @@ public class MenuTests
         };
         dropdown.value = 1;
 
+        var grayscaleMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Shaders/M_GrayscaleToColor.mat");
+        Assert.That(grayscaleMaterial, Is.Not.Null, "Failed to load Assets/Shaders/M_GrayscaleToColor.mat for menu tests.");
+        showColorLabelObject.GetComponent<TextMeshProUGUI>().text = "Show Color";
+
         var builder = builderObject.GetComponent<ThemeMenuBuilder>();
         SetPrivateField(builder, "contentRoot", contentObject.GetComponent<RectTransform>());
         SetPrivateField(builder, "sectionPrefab", CreateSectionPrefab());
@@ -275,6 +311,9 @@ public class MenuTests
         SetPrivateField(builder, "difficultyDropdown", dropdown);
         SetPrivateField(builder, "startButton", startButtonObject.GetComponent<Button>());
         SetPrivateField(builder, "resetButton", resetButtonObject.GetComponent<Button>());
+        SetPrivateField(builder, "showColorButton", showColorButtonObject.GetComponent<Button>());
+        SetPrivateField(builder, "thumbnailGrayscaleMaterial", grayscaleMaterial);
+        InvokePrivate(builder, "Awake");
 
         return new BuilderHarness
         {
@@ -282,7 +321,9 @@ public class MenuTests
             ContentRoot = contentObject.GetComponent<RectTransform>(),
             DifficultyDropdown = dropdown,
             StartButton = startButtonObject.GetComponent<Button>(),
-            ResetButton = resetButtonObject.GetComponent<Button>()
+            ResetButton = resetButtonObject.GetComponent<Button>(),
+            ShowColorButton = showColorButtonObject.GetComponent<Button>(),
+            GrayscaleMaterial = grayscaleMaterial
         };
     }
 
@@ -302,7 +343,16 @@ public class MenuTests
     private ThumbnailItemView CreateThumbnailPrefab()
     {
         var thumbnailObject = CreateUiObject("ThumbnailPrefab", null, typeof(Button), typeof(ThumbnailItemView));
-        return thumbnailObject.GetComponent<ThumbnailItemView>();
+        var thumbImageObject = CreateUiObject("ThumbImage", thumbnailObject.transform, typeof(Image));
+        var progressTextObject = CreateUiObject("ProgressText", thumbnailObject.transform, typeof(TextMeshProUGUI));
+        var trophyIconObject = CreateUiObject("TrophyIcon", thumbnailObject.transform, typeof(Image));
+        var thumbnail = thumbnailObject.GetComponent<ThumbnailItemView>();
+
+        SetPrivateField(thumbnail, "thumbImage", thumbImageObject.GetComponent<Image>());
+        SetPrivateField(thumbnail, "progressText", progressTextObject.GetComponent<TextMeshProUGUI>());
+        SetPrivateField(thumbnail, "trophyIcon", trophyIconObject.GetComponent<Image>());
+
+        return thumbnail;
     }
 
     private ImageFolderScanner.ImageItem CreateItem(string theme, string fileName, string filePath, string imageId)
@@ -375,6 +425,13 @@ public class MenuTests
         field.SetValue(null, value);
     }
 
+    private static T GetPrivateField<T>(object target, string fieldName) where T : class
+    {
+        var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found on {target.GetType().Name}.");
+        return field.GetValue(target) as T;
+    }
+
     private static void AssertColor(Color expected, Color actual)
     {
         Assert.That(actual.r, Is.EqualTo(expected.r).Within(0.001f));
@@ -390,5 +447,7 @@ public class MenuTests
         public TMP_Dropdown DifficultyDropdown { get; set; }
         public Button StartButton { get; set; }
         public Button ResetButton { get; set; }
+        public Button ShowColorButton { get; set; }
+        public Material GrayscaleMaterial { get; set; }
     }
 }

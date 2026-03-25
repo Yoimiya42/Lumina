@@ -52,6 +52,18 @@ public class ThumbnailItemView : MonoBehaviour
         RefreshProgressFromStore();
     }
 
+    public void SetPreviewColorMode(bool showColor, Material grayscaleMaterial)
+    {
+        if (thumbImage == null)
+            return;
+
+        thumbImage.material = showColor || grayscaleMaterial == null
+            ? null
+            : grayscaleMaterial;
+
+        thumbImage.SetMaterialDirty();
+    }
+
     public void SetSelected(bool selected)
     {
         if (_outline != null) _outline.enabled = selected;

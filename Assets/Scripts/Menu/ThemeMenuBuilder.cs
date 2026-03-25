@@ -18,9 +18,14 @@ public class ThemeMenuBuilder : MonoBehaviour
     [SerializeField] private TMP_Dropdown difficultyDropdown;
     [SerializeField] private Button startButton;
     [SerializeField] private Button resetButton;
+    [SerializeField] private Button showColorButton;
+
+    [Header("Thumbnail Preview")]
+    [SerializeField] private Material thumbnailGrayscaleMaterial;
 
     public string SelectedImagePath { get; private set; }
     public string SelectedImageId { get; private set; }
+    public bool AreThumbnailsShownInColor => _thumbnailsShownInColor;
 
     public Difficulty SelectedDifficulty
     {
@@ -34,14 +39,24 @@ public class ThemeMenuBuilder : MonoBehaviour
 
     private ThumbnailItemView _selectedItem;
     private bool _scannerListenerBound;
+    private TMP_Text _showColorButtonLabel;
+    private bool _thumbnailsShownInColor;
 
     private void Awake()
     {
         if (startButton != null) startButton.interactable = false;
         if (resetButton != null) resetButton.interactable = false;
 
+        if (showColorButton != null)
+        {
+            _showColorButtonLabel = showColorButton.GetComponentInChildren<TMP_Text>(true);
+            showColorButton.onClick.AddListener(ToggleThumbnailColorMode);
+        }
+
         if (resetButton != null)
             resetButton.onClick.AddListener(ResetSelected);
+
+        UpdateShowColorButtonLabel();
     }
 
     private void Start()
@@ -60,6 +75,9 @@ public class ThemeMenuBuilder : MonoBehaviour
     {
         if (resetButton != null)
             resetButton.onClick.RemoveListener(ResetSelected);
+
+        if (showColorButton != null)
+            showColorButton.onClick.RemoveListener(ToggleThumbnailColorMode);
 
         UnbindScannerListener();
     }
@@ -123,6 +141,7 @@ public class ThemeMenuBuilder : MonoBehaviour
                 var thumb = Instantiate(thumbnailPrefab, body);
                 thumb.name = $"Thumb_{it.fileName}";
                 thumb.Bind(it.sprite, it.filePath, it.imageId, OnThumbnailClicked);
+                thumb.SetPreviewColorMode(_thumbnailsShownInColor, thumbnailGrayscaleMaterial);
             }
 
             body.GetComponent<ThemeBodyHeightFitter>()?.Refit();
@@ -196,5 +215,33 @@ public class ThemeMenuBuilder : MonoBehaviour
 
         _selectedItem?.RefreshProgressFromStore();
         UpdateUiLockState();
+    }
+
+    public void ToggleThumbnailColorMode()
+    {
+        _thumbnailsShownInColor = !_thumbnailsShownInColor;
+        ApplyThumbnailColorMode();
+        UpdateShowColorButtonLabel();
+    }
+
+    private void ApplyThumbnailColorMode()
+    {
+        if (contentRoot == null)
+            return;
+
+        var thumbnails = contentRoot.GetComponentsInChildren<ThumbnailItemView>(includeInactive: true);
+        for (int i = 0; i < thumbnails.Length; i++)
+        {
+            if (thumbnails[i] != null)
+                thumbnails[i].SetPreviewColorMode(_thumbnailsShownInColor, thumbnailGrayscaleMaterial);
+        }
+
+        Canvas.ForceUpdateCanvases();
+    }
+
+    private void UpdateShowColorButtonLabel()
+    {
+        if (_showColorButtonLabel != null)
+            _showColorButtonLabel.text = _thumbnailsShownInColor ? "Show Gray" : "Show Color";
     }
 }

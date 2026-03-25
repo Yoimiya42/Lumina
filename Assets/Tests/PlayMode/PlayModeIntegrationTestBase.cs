@@ -82,6 +82,8 @@ public abstract class PlayModeIntegrationTestBase
         var dropdownObject = CreateUiObject("DifficultyDropdown", menuPanel.transform, typeof(TMP_Dropdown));
         var startButtonObject = CreateUiObject("StartButton", menuPanel.transform, typeof(Button));
         var resetButtonObject = CreateUiObject("ResetButton", menuPanel.transform, typeof(Button));
+        var showColorButtonObject = CreateUiObject("ShowColorButton", menuPanel.transform, typeof(Button));
+        CreateUiObject("Text", showColorButtonObject.transform, typeof(TextMeshProUGUI));
         var scannerObject = CreateObject("ImageFolderScanner", menuPanel.transform, typeof(ImageFolderScanner));
         var builderObject = CreateObject("ThemeMenuBuilder", menuPanel.transform, typeof(ThemeMenuBuilder));
 
@@ -117,6 +119,8 @@ public abstract class PlayModeIntegrationTestBase
         SetPrivateField(builder, "difficultyDropdown", dropdown);
         SetPrivateField(builder, "startButton", startButtonObject.GetComponent<Button>());
         SetPrivateField(builder, "resetButton", resetButtonObject.GetComponent<Button>());
+        SetPrivateField(builder, "showColorButton", showColorButtonObject.GetComponent<Button>());
+        SetPrivateField(builder, "thumbnailGrayscaleMaterial", CreateThumbnailPreviewMaterial());
 
         var painter = painterObject.GetComponent<Painter>();
         SetPrivateField(painter, "targetImage", imageObject.GetComponent<Image>());
@@ -151,6 +155,7 @@ public abstract class PlayModeIntegrationTestBase
             DifficultyDropdown = dropdown,
             StartButton = startButtonObject.GetComponent<Button>(),
             ResetButton = resetButtonObject.GetComponent<Button>(),
+            ShowColorButton = showColorButtonObject.GetComponent<Button>(),
             GameImage = imageObject.GetComponent<Image>()
         };
     }
@@ -276,6 +281,16 @@ public abstract class PlayModeIntegrationTestBase
         return material;
     }
 
+    private Material CreateThumbnailPreviewMaterial()
+    {
+        var shader = Shader.Find("Shader Graphs/SG_GrayscaleToColor");
+        Assert.That(shader, Is.Not.Null, "Shader 'Shader Graphs/SG_GrayscaleToColor' was not found for thumbnail preview tests.");
+
+        var material = new Material(shader);
+        _createdUnityObjects.Add(material);
+        return material;
+    }
+
     private PathSettings CreatePathSettings(string userContentRoot)
     {
         var settings = ScriptableObject.CreateInstance<PathSettings>();
@@ -333,6 +348,7 @@ public abstract class PlayModeIntegrationTestBase
         public TMP_Dropdown DifficultyDropdown { get; set; }
         public Button StartButton { get; set; }
         public Button ResetButton { get; set; }
+        public Button ShowColorButton { get; set; }
         public Image GameImage { get; set; }
     }
 }

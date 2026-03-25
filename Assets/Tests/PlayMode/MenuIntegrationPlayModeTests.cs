@@ -44,4 +44,33 @@ public class MenuIntegrationPlayModeTests : PlayModeIntegrationTestBase
         Assert.That(harness.DifficultyDropdown.interactable, Is.False);
         Assert.That(harness.ResetButton.interactable, Is.False);
     }
+
+    [UnityTest]
+    public IEnumerator ShowColorButton_TogglesThumbnailPreviewMaterial()
+    {
+        string imagesRoot = CreateTempDirectory();
+        WriteSolidPng(Path.Combine(imagesRoot, "fern.png"), Color.green);
+
+        var harness = CreateHarness(imagesRoot, Difficulty.Medium);
+
+        yield return ActivateHarness(harness);
+
+        var thumbnail = FindThumbnail(harness, "fern");
+        var thumbImage = GetPrivateField<UnityEngine.UI.Image>(thumbnail, "thumbImage");
+        var grayscaleMaterial = GetPrivateField<Material>(harness.Builder, "thumbnailGrayscaleMaterial");
+
+        Assert.That(thumbImage.material, Is.EqualTo(grayscaleMaterial));
+
+        harness.ShowColorButton.onClick.Invoke();
+        yield return null;
+
+        Assert.That(harness.Builder.AreThumbnailsShownInColor, Is.True);
+        Assert.That(thumbImage.material, Is.Null);
+
+        harness.ShowColorButton.onClick.Invoke();
+        yield return null;
+
+        Assert.That(harness.Builder.AreThumbnailsShownInColor, Is.False);
+        Assert.That(thumbImage.material, Is.EqualTo(grayscaleMaterial));
+    }
 }
