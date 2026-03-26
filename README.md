@@ -1,5 +1,5 @@
-[![Download Latest](https://img.shields.io/badge/Download-Latest%20Release-blue)](https://github.com/Yoimiya42/Lumina/releases/tag/v1.0.1)
-[![Changelog](https://img.shields.io/badge/Changelog-v1.1.0-blue)](./CHANGELOG.md)
+[![Download Latest](https://img.shields.io/badge/Download-Latest%20Release-blue)](https://github.com/Yoimiya42/Lumina/releases/tag/v1.4.0)
+[![Changelog](https://img.shields.io/badge/Changelog-v1.4.0-blue)](./CHANGELOG.md)
 # Lumina
 *Breath-Driven Oil Painting-Style Coloring Game*
 
@@ -15,11 +15,12 @@ Color is applied **gradually**, responding to hand coverage, movement, and rhyth
 This approach encourages mindful interaction and reduces cognitive and emotional pressure.
 
 ![Lumina Screenshot](Documentation/Images/Screenshot_1.png)
+![Lumina Screenshot](Documentation/Images/Screenshot_2.png)
 ---
 
 ## Download
 You can download the pre-built binaries from **Releases**:
-- Latest Release: Lumina v1.0.1 (Windows Standalone Build)
+- Latest Release: Lumina v1.4.0 (Windows Standalone Build)
 
 ## Key Feature: Motion-Based Input
 
